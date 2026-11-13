@@ -326,8 +326,10 @@ namespace Pa1.App
                        直排进 DAC 硬解（无 DoP 标记、不转 PCM）。Windows 没有 Microsoft 定义的
                        Native DSD 通道（厂商 Thesycon/XMOS 系驱动走 ASIO 私有协议），此处按厂商
                        DSD 子格式约定探测；设备/驱动不接受则明示原因并回退，绝不硬发未知格式
-                       （位流被当 PCM 解读会出满幅刺耳噪声）。 */
-                    if (_src == null && DevSvc.ExclusiveOn && DsdMode == "native")
+                       （位流被当 PCM 解读会出满幅刺耳噪声）。
+                       NORM 开启时跳过全部位流路：增益必然改动位流，bit-perfect 与归一化互斥，
+                       统一走 ③ 软解 PCM + 增益（响度一致优先；想硬解灯色就关 NORM）。 */
+                    if (_src == null && DevSvc.ExclusiveOn && DsdMode == "native" && !NormOn)
                     {
                         int nRate = DsdNativePacker.CarrierRateU32(meta.Spec.Rate), nBits = 32;
                         var nfmt = new DsdWaveFormat(nRate, 32, meta.Spec.Channels, GuidDsdU32Le);
@@ -352,8 +354,9 @@ namespace Pa1.App
 
                     /* ② DoP 直通（独占）：位流原样进 DAC 硬解、不降采样；混音器会破坏标记，故共享模式不启用。
                        不降档、全速率直发（DSD256 → 705.6 kHz 载波）：界面声称支持高载波却把 DoP 当 PCM
-                       解读时会出噪声，须固件/驱动侧解决——是否真锁定由实听确认（DAC 指示灯）。 */
-                    if (_src == null && DevSvc.ExclusiveOn && DsdMode != "pcm")
+                       解读时会出噪声，须固件/驱动侧解决——是否真锁定由实听确认（DAC 指示灯）。
+                       NORM 开启时跳过（同 ①：增益 ⟂ bit-perfect）。 */
+                    if (_src == null && DevSvc.ExclusiveOn && DsdMode != "pcm" && !NormOn)
                     {
                         int dopRate = DopPacker.CarrierRate(meta.Spec.Rate);
                         if (DopSupported(dopRate, meta.Spec.Channels))
@@ -668,15 +671,31 @@ namespace Pa1.App
             if (_gain != null) _gain.Gain = _volume * _normGain;    /* 软件增益，不动系统音量 */
         }
 
-        /// <summary>开关响度归一化（即时生效，不重载曲目；增益平滑 5ms 过渡）。</summary>
+        /// <summary>开关响度归一化。DSD 曲目在位流直通 ↔ 软解 PCM 间随开关切换 → 带进度重载；
+        /// PCM 曲目仅换增益，即时平滑生效。</summary>
         public void SetNorm(bool on)
         {
             if (NormOn == on) { StateChanged?.Invoke(); return; }
             NormOn = on;
             string path = FilePath;
-            if (!string.IsNullOrEmpty(path) && Meta != null)
-                ResolveNormGain(path, Meta, _posDop != null);
-            if (_gain != null) _gain.Gain = _volume * _normGain;
+            if (string.IsNullOrEmpty(path)) { StateChanged?.Invoke(); return; }
+            bool isDsd = Meta != null && Meta.Spec != null && Meta.Spec.Dsd;
+            if (isDsd)
+            {
+                /* 输出路径变了（DoP/Native ↔ PCM），同 SetDsdMode 带进度重载 */
+                double pos = Position;
+                bool wasPlaying = IsPlaying;
+                if (LoadFile(path))
+                {
+                    Position = Math.Min(pos, Length > 0 ? Length - 0.1 : 0);
+                    if (wasPlaying) Play();
+                }
+            }
+            else
+            {
+                ResolveNormGain(path, Meta, false);
+                if (_gain != null) _gain.Gain = _volume * _normGain;
+            }
             StateChanged?.Invoke();
         }
 

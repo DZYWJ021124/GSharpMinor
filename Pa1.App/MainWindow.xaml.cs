@@ -449,7 +449,8 @@ namespace Pa1.App
                 ChainReadout.Text += " · NORM N/A (bitstream)";
             else if (_eng.NormOn && _eng.NormSource != "-")
                 ChainReadout.Text += " · NORM " + _eng.NormGainDb.ToString("+0.0;-0.0;0.0")
-                    + "dB " + _eng.NormSource;
+                    + "dB " + _eng.NormSource
+                    + (_eng.Meta != null && _eng.Meta.Spec != null && _eng.Meta.Spec.Dsd ? " · DSD→PCM" : "");
 
             BtnExclusive.Content = _eng.DevSvc.ExclusiveOn ? "Exclusive · ON" : "Exclusive · OFF";
             BtnDsdOut.Content = _eng.DsdMode == "native" ? "DSD · Native"
