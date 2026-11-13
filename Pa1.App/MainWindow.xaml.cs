@@ -112,6 +112,10 @@ namespace Pa1.App
             /* 恢复 DSD 输出模式（dop/native/pcm，非法值回 dop） */
             string dsdMode = Settings.Get("dsd.mode", "dop");
             _eng.DsdMode = dsdMode == "native" || dsdMode == "pcm" ? dsdMode : "dop";
+            /* 恢复响度归一化（norm.on / norm.target） */
+            _eng.NormOn = Settings.Get("norm.on", "0") == "1";
+            double nt = Settings.GetDouble("norm.target", -18);
+            if (nt >= -40 && nt <= -5) _eng.NormTarget = nt;
             _pl.ModeIdx = Settings.GetInt("mode", 0);
             if (_pl.ModeIdx < 0 || _pl.ModeIdx >= PlayMode.All.Length) _pl.ModeIdx = 0;
             /* 恢复频谱量程（只接受 -60/-72/-96 三档） */
@@ -148,6 +152,13 @@ namespace Pa1.App
                     _sortMode = sv == "title-az" ? 1 : sv == "title-za" ? 2
                               : sv == "album-az" ? 3 : sv == "album-za" ? 4 : 0;
                     if (SortCombo != null) SortCombo.SelectedIndex = _sortMode;
+                }
+                else if (a == "--norm") _eng.SetNorm(true);
+                else if (a.StartsWith("--norm-target="))
+                {
+                    double nt2;
+                    if (double.TryParse(a.Substring(14), NumberStyles.Float, CultureInfo.InvariantCulture, out nt2)
+                        && nt2 >= -40 && nt2 <= -5) _eng.NormTarget = nt2;
                 }
                 else if (a.StartsWith("--dsd="))
                 {
@@ -194,6 +205,8 @@ namespace Pa1.App
             Settings.Set("dbfloor", AnalyzerMath.DbFloor.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Settings.Set("exclusive", _eng.DevSvc.ExclusiveOn ? "1" : "0");
             Settings.Set("dsd.mode", _eng.DsdMode);
+            Settings.Set("norm.on", _eng.NormOn ? "1" : "0");
+            Settings.Set("norm.target", _eng.NormTarget.ToString(CultureInfo.InvariantCulture));
             Settings.Set("mode", _pl.ModeIdx.ToString());
             Settings.Set("page", _page);
             Settings.Set("vol", ((int)VolSlider.Value).ToString());
@@ -432,10 +445,16 @@ namespace Pa1.App
             if (_eng.DevSvc.ExclusiveOn && _eng.Error != null && _eng.Error.StartsWith("EXCLUSIVE FAILED"))
                 excl = "EXCL · FALLBACK";
             ChainReadout.Text = "OUT · " + excl + " · " + planLbl + " · DEV " + devName;
+            if (_eng.NormOn && _eng.NormSource == "N/A")
+                ChainReadout.Text += " · NORM N/A (bitstream)";
+            else if (_eng.NormOn && _eng.NormSource != "-")
+                ChainReadout.Text += " · NORM " + _eng.NormGainDb.ToString("+0.0;-0.0;0.0")
+                    + "dB " + _eng.NormSource;
 
             BtnExclusive.Content = _eng.DevSvc.ExclusiveOn ? "Exclusive · ON" : "Exclusive · OFF";
             BtnDsdOut.Content = _eng.DsdMode == "native" ? "DSD · Native"
                               : _eng.DsdMode == "pcm" ? "DSD · PCM" : "DSD · DoP";
+            BtnNorm.Content = _eng.NormOn ? "NORM · ON" : "NORM · OFF";
             BtnTheme.Content = "Theme · " + (ReferenceEquals(T, ThemePal.Dark) ? "Light" : "Dark");
             BtnMode.Content = _pl.Mode.Label;
             BtnRange.Content = "Range · " + (int)AnalyzerMath.DbFloor + "dB";
@@ -572,6 +591,14 @@ namespace Pa1.App
             if (_loading) return;
             string next = _eng.DsdMode == "dop" ? "native" : _eng.DsdMode == "native" ? "pcm" : "dop";
             _eng.SetDsdMode(next);
+            SyncUI();
+            Persist();
+        }
+
+        /// <summary>响度归一化开关（即时生效不重载；增益来源 TAG/SCAN/CACHE 显示于 OUT 读数）。</summary>
+        void BtnNorm_Click(object s, RoutedEventArgs e)
+        {
+            _eng.SetNorm(!_eng.NormOn);
             SyncUI();
             Persist();
         }
@@ -756,6 +783,10 @@ namespace Pa1.App
                     PlStats.Text = _rows.Count + " TRACKS";
                     _pl.InvalidateShuffle();
                     ApplySort(_sortMode);   /* 新增后按当前档位重排（导入序档按 Seq 稳定） */
+                    /* 响度缓存预热：无 RG 标签的曲目排队后台扫描（串行，播前大概率已就绪） */
+                    foreach (var kv in pairs)
+                        if (float.IsNaN(kv.Key.RgGainDb))
+                            LoudnessScanner.Request(kv.Value);
                     _restorePending = false;
                     SaveTracks();
                     BtnAdd.IsEnabled = true;
@@ -842,6 +873,7 @@ namespace Pa1.App
             if (k == Key.T) { BtnTheme_Click(null, null); return true; }
             if (k == Key.R) { BtnRange_Click(null, null); return true; }
             if (k == Key.D) { BtnDsdOut_Click(null, null); return true; }
+            if (k == Key.N) { BtnNorm_Click(null, null); return true; }
             if (k == Key.Space) { if (!_loading) { _eng.Toggle(); SyncUI(); } return true; }
             if (k == Key.Left) { if (!_loading) _eng.Position = Math.Max(0, _eng.Position - 5); return true; }
             if (k == Key.Right) { if (!_loading) _eng.Position = Math.Min(_eng.Length, _eng.Position + 5); return true; }

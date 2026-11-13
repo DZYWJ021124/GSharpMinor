@@ -135,6 +135,24 @@ namespace Pa1.Tests
             return 2 * Math.Sqrt(Math.Max(0, s1 * s1 + s2 * s2 - cw * s1 * s2)) / x.Length;
         }
 
+        static void FeedSine(LoudnessMeter m, int rate, int ch, double freq, double amp, double sec)
+        {
+            int frames = (int)(rate * sec);
+            var buf = new float[Math.Min(frames, 2048) * ch];
+            int done = 0;
+            while (done < frames)
+            {
+                int n = Math.Min(buf.Length / ch, frames - done);
+                for (int f = 0; f < n; f++)
+                {
+                    float v = (float)(amp * Math.Sin(2 * Math.PI * freq * (done + f) / rate));
+                    for (int c = 0; c < ch; c++) buf[f * ch + c] = v;
+                }
+                m.Process(buf, 0, n);
+                done += n;
+            }
+        }
+
         static int Main()
         {
             Console.WriteLine("=== Pa1.Core regression ===");
@@ -650,6 +668,62 @@ namespace Pa1.Tests
                 Ok("Native U32 位级往返（t0→bit31、小端）", bitsOk, "frames=" + frames);
             }
 
+            /* ── 3d. R128 响度测量（LoudnessMeter） ── */
+            {
+                /* 48k 系数锚点：与 BS.1770-4 发布常数逐位一致 */
+                var pre = LoudnessMeter.KPreCoeffs(48000);
+                var rlb = LoudnessMeter.KRlbCoeffs(48000);
+                Ok("R128 K 加权 48k 系数锚点（pre.b0=1.5351248 / rlb.a1=-1.9900474）",
+                    Math.Abs(pre[0] - 1.53512485958697) < 1e-6 && Math.Abs(rlb[3] - (-1.99004745483398)) < 1e-5,
+                    string.Format("pre.b0={0:0.0000000} rlb.a1={1:0.0000000}", pre[0], rlb[3]));
+
+                /* 满幅双声道 1kHz：Σz = A² → LUFS ≈ -0.691 + 20log10(A)（1kHz K≈0dB） */
+                var m1 = new LoudnessMeter(48000, 2);
+                FeedSine(m1, 48000, 2, 1000, 1.0, 2.0);
+                m1.Finish();
+                Ok("R128 满幅 1kHz 立体声 ≈ -0.7 LUFS",
+                    Math.Abs(m1.IntegratedLufs - (-0.7)) < 0.8, m1.IntegratedLufs.ToString("0.00") + " LUFS");
+
+                var m2 = new LoudnessMeter(48000, 2);
+                FeedSine(m2, 48000, 2, 1000, 0.1, 2.0);
+                m2.Finish();
+                Ok("R128 幅度 -20dB → LUFS 步进 20dB（差分精确）",
+                    Math.Abs((m1.IntegratedLufs - m2.IntegratedLufs) - 20.0) < 0.05,
+                    (m1.IntegratedLufs - m2.IntegratedLufs).ToString("0.00") + " dB");
+
+                var m3 = new LoudnessMeter(48000, 1);
+                FeedSine(m3, 48000, 1, 1000, 1.0, 2.0);
+                m3.Finish();
+                Ok("R128 单声道 = 立体声 -3.01dB",
+                    Math.Abs((m1.IntegratedLufs - m3.IntegratedLufs) - 3.01) < 0.1,
+                    (m1.IntegratedLufs - m3.IntegratedLufs).ToString("0.00") + " dB");
+
+                /* 相对门限：10s 响段 + 2s 极轻段 → 轻段剔除，结果 ≈ 仅响段 */
+                var m4 = new LoudnessMeter(48000, 2);
+                FeedSine(m4, 48000, 2, 1000, 0.5, 10.0);
+                FeedSine(m4, 48000, 2, 1000, 0.005, 2.0);
+                m4.Finish();
+                var m5 = new LoudnessMeter(48000, 2);
+                FeedSine(m5, 48000, 2, 1000, 0.5, 10.0);
+                m5.Finish();
+                Ok("R128 相对门限剔除轻段（混轻段 ≈ 仅响段）",
+                    Math.Abs(m4.IntegratedLufs - m5.IntegratedLufs) < 0.5 && Math.Abs(m5.IntegratedLufs - (-6.7)) < 0.8,
+                    string.Format("mix={0:0.00} loud={1:0.00}", m4.IntegratedLufs, m5.IntegratedLufs));
+
+                Ok("R128 峰值 0.5 幅度 = -6.02dBFS",
+                    Math.Abs(m5.PeakDb - (-6.0206)) < 0.01, m5.PeakDb.ToString("0.00") + " dBFS");
+
+                /* 增益规划：目标 -18 LUFS（ReplayGain 参考），峰值钳制防削波，无峰值 +12dB 上限 */
+                Ok("NormalizeGainDb 目标对齐 + 峰值钳制",
+                    Math.Abs(LoudnessMeter.NormalizeGainDb(-20, -3, -18) - 2) < 0.001
+                    && Math.Abs(LoudnessMeter.NormalizeGainDb(-30, -6, -18) - 6) < 0.001
+                    && Math.Abs(LoudnessMeter.NormalizeGainDb(-30, double.NaN, -18) - 12) < 0.001,
+                    string.Format("{0:0.0}/{1:0.0}/{2:0.0}",
+                        LoudnessMeter.NormalizeGainDb(-20, -3, -18),
+                        LoudnessMeter.NormalizeGainDb(-30, -6, -18),
+                        LoudnessMeter.NormalizeGainDb(-30, double.NaN, -18)));
+            }
+
             /* ── 4. 硬件判定降档矩阵（10 场景） ── */
             {
                 Func<int, TrackSpec, OutputPlan> T = (hw, spec) => OutputPlanner.Plan(spec, hw, 16);
@@ -808,6 +882,82 @@ namespace Pa1.Tests
                 TagReader.ParseVorbisComment(ftag, mF);
                 Ok("FLAC Vorbis tags", mF.Title == "HiRes Song" && mF.Artist == "PA-1 LAB" && mF.Album == "Native Tests",
                     "'" + mF.Title + "','" + mF.Artist + "','" + mF.Album + "'");
+
+                /* ReplayGain：Vorbis REPLAYGAIN_*（增益+峰值） */
+                {
+                    var rtag = new byte[160];
+                    rtag[0] = (byte)'f'; rtag[1] = (byte)'L'; rtag[2] = (byte)'a'; rtag[3] = (byte)'C';
+                    rtag[4] = 0x00;                                                  /* 非末块 */
+                    rtag[5] = 0; rtag[6] = 0; rtag[7] = 34;                          /* STREAMINFO len=34 */
+                    int rvo = 4 + 4 + 34;
+                    string rc1 = "REPLAYGAIN_TRACK_GAIN=-6.54 dB", rc2 = "REPLAYGAIN_TRACK_PEAK=0.988",
+                           rc3 = "R128_TRACK_GAIN=-8.30";
+                    int rvcLen = 4 + 1 + 4 + (4 + rc1.Length) + (4 + rc2.Length) + (4 + rc3.Length);
+                    rtag[rvo] = 0x84;                                                /* 末块 + type4 */
+                    rtag[rvo + 1] = (byte)((rvcLen >> 16) & 0xff); rtag[rvo + 2] = (byte)((rvcLen >> 8) & 0xff); rtag[rvo + 3] = (byte)(rvcLen & 0xff);
+                    int rp = rvo + 4;
+                    rtag[rp] = 1; rp += 4; rtag[rp] = (byte)'x'; rp += 1;             /* vendor "x" */
+                    rtag[rp] = 3; rp += 4;
+                    foreach (var c in new[] { rc1, rc2, rc3 })
+                    {
+                        rtag[rp] = (byte)c.Length; rp += 4;
+                        for (int i = 0; i < c.Length; i++) rtag[rp + i] = (byte)c[i];
+                        rp += c.Length;
+                    }
+                    var mR = new TrackMeta();
+                    TagReader.ParseVorbisComment(rtag, mR);
+                    Ok("Vorbis ReplayGain 增益+峰值", Math.Abs(mR.RgGainDb - (-6.54f)) < 0.001
+                        && Math.Abs(mR.RgPeakDb - (-0.105f)) < 0.01,
+                        string.Format("gain={0:0.00} peak={1:0.000}", mR.RgGainDb, mR.RgPeakDb));
+
+                    /* 仅有 R128_TRACK_GAIN（参考 -23 LUFS）→ 换算到 -18：+5dB */
+                    var rtag2 = new byte[96];
+                    rtag2[0] = (byte)'f'; rtag2[1] = (byte)'L'; rtag2[2] = (byte)'a'; rtag2[3] = (byte)'C';
+                    int rvo2 = 8;
+                    string rc = "R128_TRACK_GAIN=-8.30";
+                    int rvc2 = 4 + 1 + 4 + (4 + rc.Length);
+                    rtag2[rvo2] = 0x84;
+                    rtag2[rvo2 + 1] = (byte)((rvc2 >> 16) & 0xff); rtag2[rvo2 + 2] = (byte)((rvc2 >> 8) & 0xff); rtag2[rvo2 + 3] = (byte)(rvc2 & 0xff);
+                    int rp2 = rvo2 + 4;
+                    rtag2[rp2] = 1; rp2 += 4; rtag2[rp2] = (byte)'x'; rp2 += 1;
+                    rtag2[rp2] = 1; rp2 += 4;
+                    rtag2[rp2] = (byte)rc.Length; rp2 += 4;
+                    for (int i = 0; i < rc.Length; i++) rtag2[rp2 + i] = (byte)rc[i];
+                    var mR2 = new TrackMeta();
+                    TagReader.ParseVorbisComment(rtag2, mR2);
+                    Ok("R128_TRACK_GAIN → -18 参考换算（+5dB）", Math.Abs(mR2.RgGainDb - (-3.30f)) < 0.001,
+                        mR2.RgGainDb.ToString("0.00") + " dB");
+                }
+
+                /* ReplayGain：ID3v2.3 TXXX（描述 replaygain_track_gain / 值 "-3.20 dB"） */
+                {
+                    string desc = "replaygain_track_gain", val = "-3.20 dB";
+                    var body = new System.Collections.Generic.List<byte>();
+                    body.Add(0);                                                     /* ISO-8859-1 */
+                    foreach (char c in desc) body.Add((byte)c);
+                    body.Add(0);
+                    foreach (char c in val) body.Add((byte)c);
+                    int fsz = body.Count;
+                    var id3 = new byte[64 + fsz];
+                    id3[0] = 0x49; id3[1] = 0x44; id3[2] = 0x33; id3[3] = 3; id3[4] = 0; id3[5] = 0;
+                    int tagSize = 10 + fsz;
+                    id3[6] = (byte)((tagSize >> 21) & 0x7f); id3[7] = (byte)((tagSize >> 14) & 0x7f);
+                    id3[8] = (byte)((tagSize >> 7) & 0x7f); id3[9] = (byte)(tagSize & 0x7f);
+                    id3[10] = (byte)'T'; id3[11] = (byte)'X'; id3[12] = (byte)'X'; id3[13] = (byte)'X';
+                    id3[14] = (byte)((fsz >> 24) & 0xff); id3[15] = (byte)((fsz >> 16) & 0xff);
+                    id3[16] = (byte)((fsz >> 8) & 0xff); id3[17] = (byte)(fsz & 0xff);
+                    for (int i = 0; i < fsz; i++) id3[20 + i] = body[i];
+                    var mT = new TrackMeta();
+                    TagReader.ParseId3v2(id3, mT);
+                    Ok("ID3v2 TXXX ReplayGain", Math.Abs(mT.RgGainDb - (-3.2f)) < 0.001 && float.IsNaN(mT.RgPeakDb),
+                        "gain=" + mT.RgGainDb.ToString("0.00") + " peak=" + mT.RgPeakDb);
+
+                    Ok("ParseDb/ParsePeak 边角", Math.Abs(TagReader.ParseDb(" -6.54 dB ") - (-6.54f)) < 0.001
+                        && float.IsNaN(TagReader.ParseDb("abc"))
+                        && Math.Abs(TagReader.ParsePeak("0.988") - (-0.105f)) < 0.01
+                        && Math.Abs(TagReader.ParsePeak("-1.2") - (-1.2f)) < 0.001,
+                        "ok");
+                }
 
                 Ok("KhzLabel 44.1k", FormatProbe.KhzLabel(44100) == "44.1 kHz", FormatProbe.KhzLabel(44100));
                 Ok("KhzLabel 48k", FormatProbe.KhzLabel(48000) == "48 kHz", FormatProbe.KhzLabel(48000));
