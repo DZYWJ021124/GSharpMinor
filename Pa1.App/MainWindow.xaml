@@ -375,8 +375,7 @@
             <Button x:Name="BtnRange" Content="Range · -96dB" Click="BtnRange_Click" Style="{StaticResource TxtBtn}"
                     Margin="10,0,0,0" ToolTip="频谱量程下限（R 循环切换）"/>
             <Button x:Name="BtnNorm" Content="NORM · OFF" Click="BtnNorm_Click" Style="{StaticResource TxtBtn}"
-                    Margin="10,0,0,0" ToolTip="响度归一化：目标 -18 LUFS（ReplayGain 标签优先，缺失自动扫描）。
-开启时 DSD 走软解 PCM + 增益（响度一致）；关闭时 DSD 走 DoP 位流直通（硬解灯色，音量用设备旋钮）。N 键开关"/>
+                    Margin="10,0,0,0" ToolTip="响度归一化：目标 -18 LUFS（ReplayGain 标签优先，缺失自动扫描；N 键开关）"/>
             <Button x:Name="BtnAdd" Content="+ Add Files" Click="BtnAdd_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
             <Button x:Name="BtnAddFolder" Content="+ Add Folder" Click="BtnAddFolder_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
           </StackPanel>
