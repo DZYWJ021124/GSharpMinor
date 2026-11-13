@@ -727,7 +727,7 @@ namespace Pa1.App
                     if (_gain != null) _gain.Gain = _volume * _normGain;
                 }
                 StateChanged?.Invoke();
-            });
+            }, true);   /* priority：当前播放曲目插队，不排在批量预热后面 */
         }
 
         public void SetExclusive(bool on)

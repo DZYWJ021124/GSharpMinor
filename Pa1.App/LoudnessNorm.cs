@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using NAudio.Wave;
 using Pa1.Core;
 
@@ -91,29 +92,50 @@ namespace Pa1.App
 
     /// <summary>
     /// 全文件 R128 响度扫描：PCM 走 NAudio 解码器，DSD 走 DsdDecoder 管线（48k 目标率，流式恒定内存）。
-    /// Request 为后台串行队列（防多曲并行解码压垮播放线程）；完成回调任意线程。
+    /// 单专用工作线程串行消费优先队列——绝不用线程池：Task.Run + 阻塞信号量曾钉死池线程，
+    /// 曲库恢复批量预热时把 PlayIndex 的加载任务饿死在队列里（播放永远卡 LOADING）。
     /// </summary>
     public static class LoudnessScanner
     {
-        static readonly System.Threading.SemaphoreSlim _gate = new System.Threading.SemaphoreSlim(1, 1);
+        static readonly object _qLk = new object();
+        static readonly List<KeyValuePair<string, Action>> _q = new List<KeyValuePair<string, Action>>();
+        static Thread _worker;
 
-        /// <summary>入队后台扫描（已有缓存则跳过）；完成后回调 onDone（任意线程）。</summary>
-        public static void Request(string path, Action onDone = null)
+        /// <summary>入队后台扫描（缓存命中则跳过）。priority=true 插到队首（当前播放曲目优先）。</summary>
+        public static void Request(string path, Action onDone = null, bool priority = false)
         {
-            System.Threading.Tasks.Task.Run(() =>
+            lock (_qLk)
             {
-                try { _gate.Wait(); }
-                catch { return; }
+                if (priority) _q.Insert(0, new KeyValuePair<string, Action>(path, onDone));
+                else _q.Add(new KeyValuePair<string, Action>(path, onDone));
+                if (_worker == null || !_worker.IsAlive)
+                {
+                    _worker = new Thread(WorkerLoop) { IsBackground = true, Name = "pa1-loudness-scan" };
+                    _worker.Start();
+                }
+            }
+        }
+
+        static void WorkerLoop()
+        {
+            while (true)
+            {
+                KeyValuePair<string, Action> job;
+                lock (_qLk)
+                {
+                    while (_q.Count == 0) Monitor.Wait(_qLk);
+                    job = _q[0];
+                    _q.RemoveAt(0);
+                }
                 try
                 {
                     float l, p;
-                    if (!LoudnessCache.TryGet(path, out l, out p) && TryScan(path, out l, out p))
-                        LoudnessCache.Put(path, l, p);
+                    if (!LoudnessCache.TryGet(job.Key, out l, out p) && TryScan(job.Key, out l, out p))
+                        LoudnessCache.Put(job.Key, l, p);
                 }
                 catch { }
-                finally { try { _gate.Release(); } catch { } }
-                try { if (onDone != null) onDone(); } catch { }
-            });
+                try { if (job.Value != null) job.Value(); } catch { }
+            }
         }
 
         /// <summary>阻塞式全文件扫描。失败返回 false。</summary>
