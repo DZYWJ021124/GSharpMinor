@@ -1,0 +1,4 @@
+﻿<Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
+  <!-- 托管依赖内嵌（NAudio/SkiaSharp/Pa1.Core）；原生 libSkiaSharp 走 NativeSkia 确定性内嵌 -->
+  <Costura />
+</Weavers>

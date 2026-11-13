@@ -1,0 +1,569 @@
+<Window x:Class="Pa1.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Pa1.App"
+        Title="PHOSPHOR PA-1 · Spectrum Analyzer" Height="820" Width="1180"
+        MinHeight="620" MinWidth="900"
+        Background="{DynamicResource BgBrush}" WindowStartupLocation="CenterScreen"
+        FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
+        AllowDrop="True" DragOver="Win_DragOver" Drop="Win_Drop">
+  <Window.Resources>
+    <!-- ══ 主题色板（UpdateThemeBrushes 换肤时原地改 Color，全部引用自动生效） ══ -->
+    <SolidColorBrush x:Key="BgBrush" Color="#0b0d08"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#12140d"/>
+    <SolidColorBrush x:Key="Panel2Brush" Color="#171a11"/>
+    <SolidColorBrush x:Key="LineBrush" Color="#2c2f24"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#e9e7dc"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#8a887b"/>
+    <SolidColorBrush x:Key="PhosBrush" Color="#3dff85"/>
+    <SolidColorBrush x:Key="PhosDimBrush" Color="#2ca35c"/>
+    <SolidColorBrush x:Key="AmberBrush" Color="#ffb340"/>
+    <SolidColorBrush x:Key="TrackBgBrush" Color="#22241b"/>
+    <SolidColorBrush x:Key="HoverBrush" Color="#1affff55"/>
+    <SolidColorBrush x:Key="SelBrush" Color="#2e3dff85"/>
+
+    <!-- ══ 页签 ══ -->
+    <Style x:Key="TabBtn" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+      <Setter Property="BorderThickness" Value="0,0,0,2"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontSize" Value="10"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Padding" Value="16,10"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource PhosBrush}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- ══ 常规按钮 ══ -->
+    <Style x:Key="TxtBtn" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontSize" Value="10.5"/>
+      <Setter Property="Padding" Value="14,9"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource PhosBrush}"/>
+                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource PhosBrush}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource SelBrush}"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource LineBrush}"/>
+                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- ══ 播放键（琥珀主操作） ══ -->
+    <Style x:Key="PlayBtn" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource AmberBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource AmberBrush}"/>
+      <Setter Property="BorderThickness" Value="1.5"/>
+      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Padding" Value="24,9"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="#33ffb340"/>
+                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AmberBrush}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="#55ffb340"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- ══ 音量滑条（磷光主题） ══ -->
+    <Style x:Key="VolSlider" TargetType="Slider">
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Slider">
+            <Grid Background="Transparent" VerticalAlignment="Center">
+              <Border Height="4" CornerRadius="2" Background="{DynamicResource TrackBgBrush}" VerticalAlignment="Center"/>
+              <Track x:Name="PART_Track" VerticalAlignment="Center">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="Slider.DecreaseLarge" IsTabStop="False" Focusable="False">
+                    <RepeatButton.Template>
+                      <ControlTemplate TargetType="RepeatButton">
+                        <Border Height="4" CornerRadius="2" Background="{DynamicResource PhosDimBrush}" VerticalAlignment="Center" Margin="0,0,0,0"/>
+                      </ControlTemplate>
+                    </RepeatButton.Template>
+                  </RepeatButton>
+                </Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="Slider.IncreaseLarge" IsTabStop="False" Focusable="False">
+                    <RepeatButton.Template>
+                      <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="Transparent"/>
+                      </ControlTemplate>
+                    </RepeatButton.Template>
+                  </RepeatButton>
+                </Track.IncreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Width="15" Height="15">
+                    <Thumb.Template>
+                      <ControlTemplate TargetType="Thumb">
+                        <Ellipse Width="15" Height="15" Fill="{DynamicResource PhosBrush}"
+                                 Stroke="{DynamicResource PanelBrush}" StrokeThickness="2.5"/>
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- ══ 表格单元格文字：上下居中（TextBlock 默认 Stretch 贴顶，是行文字不居中的根因） ══ -->
+    <!-- Foreground 显式绑定行的 Foreground（局部值优先级 > 继承），防止默认单元格模板的
+         IsSelected 触发器把选中文字刷成系统高亮白 -->
+    <Style x:Key="CellTxt" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+      <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridRow}}"/>
+    </Style>
+
+    <!-- ══ 输出设备下拉 ══ -->
+    <Style x:Key="DevCombo" TargetType="ComboBox">
+      <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+      <Setter Property="Background" Value="{DynamicResource Panel2Brush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBox">
+            <Grid>
+              <ToggleButton x:Name="Toggle" Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                <ToggleButton.Template>
+                  <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="bd" Background="{DynamicResource Panel2Brush}" BorderBrush="{DynamicResource LineBrush}"
+                            BorderThickness="1" CornerRadius="3" Padding="10,8">
+                      <DockPanel>
+                                                        <TextBlock DockPanel.Dock="Right" Text="▾" Foreground="{DynamicResource MutedBrush}"
+                                                                   FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <ContentPresenter/>
+                      </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource PhosBrush}"/>
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </ToggleButton.Template>
+              </ToggleButton>
+              <ContentPresenter x:Name="ContentSite" Content="{TemplateBinding SelectionBoxItem}"
+                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                Margin="11,8,30,8" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                TextElement.Foreground="{DynamicResource TextBrush}"/>
+              <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                     AllowsTransparency="True" PopupAnimation="Fade">
+                <Border Background="{DynamicResource Panel2Brush}" BorderBrush="{DynamicResource LineBrush}"
+                        BorderThickness="1" CornerRadius="3" Margin="0,2,0,0" MinWidth="{TemplateBinding ActualWidth}"
+                        MaxHeight="280">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsPresenter/>
+                  </ScrollViewer>
+                </Border>
+              </Popup>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Setter Property="ItemContainerStyle">
+        <Setter.Value>
+          <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                  <Border x:Name="bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter/>
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                    </Trigger>
+                    <Trigger Property="IsHighlighted" Value="True">
+                      <Setter TargetName="bd" Property="Background" Value="{DynamicResource SelBrush}"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                      <Setter TargetName="bd" Property="Background" Value="{DynamicResource SelBrush}"/>
+                      <Setter Property="Foreground" Value="{DynamicResource PhosBrush}"/>
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <Grid x:Name="RootBg" Background="{DynamicResource BgBrush}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- ══ 顶部品牌 / 页签 ══ -->
+    <Grid Grid.Row="0" Margin="26,18,26,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+      <StackPanel Grid.Column="0" VerticalAlignment="Center">
+        <TextBlock x:Name="BrandText" Text="PHOSPHOR" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="32" FontWeight="Bold"
+                   Foreground="{DynamicResource PhosBrush}">
+          <TextBlock.Effect>
+            <DropShadowEffect x:Name="BrandGlow" BlurRadius="22" ShadowDepth="0" Opacity="0.5" Color="#3dff85"/>
+          </TextBlock.Effect>
+        </TextBlock>
+        <TextBlock Text="PA-1 · SPECTRUM ANALYZER" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9.5"
+                   Foreground="{DynamicResource MutedBrush}" Margin="3,7,0,0" FontWeight="Bold"/>
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,22,0">
+          <Ellipse x:Name="LedSignal" Width="9" Height="9" Fill="{DynamicResource TrackBgBrush}" Margin="0,0,7,0">
+            <Ellipse.Effect>
+              <DropShadowEffect x:Name="GlowSig" BlurRadius="10" ShadowDepth="0" Opacity="0" Color="#3dff85"/>
+            </Ellipse.Effect>
+          </Ellipse>
+          <TextBlock Text="SIG" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                     VerticalAlignment="Center" FontWeight="Bold"/>
+          <Ellipse x:Name="LedClip" Width="9" Height="9" Fill="{DynamicResource TrackBgBrush}" Margin="16,0,7,0">
+            <Ellipse.Effect>
+              <DropShadowEffect x:Name="GlowClip" BlurRadius="10" ShadowDepth="0" Opacity="0" Color="#ffb340"/>
+            </Ellipse.Effect>
+          </Ellipse>
+          <TextBlock Text="CLIP" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                     VerticalAlignment="Center" FontWeight="Bold"/>
+        </StackPanel>
+        <Button x:Name="TabAnalyzer" Content="ANALYZER" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
+        <Button x:Name="TabLibrary" Content="LIBRARY" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
+        <Button x:Name="BtnTheme" Content="Theme · Light" Click="BtnTheme_Click" Style="{StaticResource TxtBtn}"
+                Width="112" Margin="14,0,0,0"/>
+      </StackPanel>
+    </Grid>
+    <Border Grid.Row="0" Height="1" VerticalAlignment="Bottom" Margin="26,10,26,0"
+            Background="{DynamicResource LineBrush}"/>
+
+    <!-- ══ 页一：分析仪 ══ -->
+    <Grid x:Name="PageA" Grid.Row="1" Margin="26,14,26,0">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <!-- 频谱屏（细边框；不再挂 DropShadowEffect——大画布每帧离屏模糊会拖垮 Analyser 帧率并饿死音频线程） -->
+      <Border Grid.Row="0" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="5"
+              Background="{DynamicResource PanelBrush}" Padding="3">
+        <local:SpectrumControl x:Name="SpecView" MinHeight="200"/>
+      </Border>
+
+      <!-- 传输台卡片 -->
+      <Border Grid.Row="1" Margin="0,16,0,10" Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="5" Padding="22,18,22,16">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <!-- 曲目信息 + 进度 -->
+          <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock x:Name="NpName" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="18"
+                           Foreground="{DynamicResource TextBrush}" FontWeight="Bold"/>
+                <TextBlock x:Name="NpSub" Text="PHOSPHOR PA-1 · AWAITING SIGNAL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI"
+                           FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" Margin="0,6,0,0"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                <TextBlock x:Name="TimeNow" Text="0:00" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="13"
+                           Foreground="{DynamicResource PhosBrush}" VerticalAlignment="Center" FontWeight="Bold"/>
+                <TextBlock Text=" / " FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="13"
+                           Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TimeTotal" Text="0:00" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="13"
+                           Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Grid>
+
+            <!-- 进度条：底槽 + 已播填充 + 游标。
+                 MouseDown 捕获鼠标：拖出 22px 轨道后仍能收到 MouseUp——否则松手落在轨道外
+                 时 seek 丢失且 _scrubbing 粘住（进度头冻结、音乐与进度条错位） -->
+            <Grid x:Name="ScrubTrack" Height="22" Margin="0,12,0,0" Background="Transparent"
+                  MouseLeftButtonDown="Scrub_MouseLeftButtonDown"
+                  MouseLeftButtonUp="Scrub_MouseLeftButtonUp" MouseMove="Scrub_MouseMove"
+                  LostMouseCapture="Scrub_LostMouseCapture" Cursor="Hand">
+              <Border Height="5" CornerRadius="2.5" VerticalAlignment="Center" Background="{DynamicResource TrackBgBrush}"/>
+              <Rectangle x:Name="ScrubFill" Width="0" Height="5" RadiusX="2.5" RadiusY="2.5"
+                         HorizontalAlignment="Left" VerticalAlignment="Center" Fill="{DynamicResource PhosDimBrush}"/>
+              <Line x:Name="ScrubHead" X1="0" Y1="2" X2="0" Y2="20" Stroke="{DynamicResource AmberBrush}"
+                    StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+            </Grid>
+          </StackPanel>
+
+          <!-- 走带按钮 -->
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+            <Button x:Name="BtnPrev" Content="|◀ Prev" Click="BtnPrev_Click" Style="{StaticResource TxtBtn}"/>
+            <Button x:Name="BtnPlay" Content="▶ Play" Click="BtnPlay_Click" Style="{StaticResource PlayBtn}" Margin="10,0,0,0"/>
+            <Button x:Name="BtnNext" Content="Next ▶|" Click="BtnNext_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
+            <Button x:Name="BtnStop" Content="■ Stop" Click="BtnStop_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
+            <Rectangle Width="1" Fill="{DynamicResource LineBrush}" Margin="16,4,16,4"/>
+            <Button x:Name="BtnMode" Content="Order" Click="BtnMode_Click" Style="{StaticResource TxtBtn}"
+                    ToolTip="播放模式"/>
+            <Button x:Name="BtnRange" Content="Range · -96dB" Click="BtnRange_Click" Style="{StaticResource TxtBtn}"
+                    Margin="10,0,0,0" ToolTip="频谱量程下限（R 循环切换）"/>
+            <Button x:Name="BtnAdd" Content="+ Add Files" Click="BtnAdd_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
+            <Button x:Name="BtnAddFolder" Content="+ Add Folder" Click="BtnAddFolder_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
+          </StackPanel>
+
+          <!-- 电平 / 音量 / 输出 -->
+          <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="2*"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,20,0">
+              <TextBlock Text="LEVEL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                         FontWeight="Bold"/>
+              <Grid x:Name="MeterTrack" Height="8" Background="{DynamicResource TrackBgBrush}" Margin="0,7,0,0"
+                    VerticalAlignment="Center">
+                <Rectangle x:Name="MeterFill" Width="0" RadiusX="4" RadiusY="4" Fill="{DynamicResource PhosBrush}"
+                           HorizontalAlignment="Left"/>
+              </Grid>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,20,0">
+              <TextBlock Text="VOL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                         FontWeight="Bold"/>
+              <Slider x:Name="VolSlider" Minimum="0" Maximum="100" Value="80" ValueChanged="Vol_ValueChanged"
+                      Style="{StaticResource VolSlider}" Margin="0,5,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="OUTPUT DEVICE" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                         FontWeight="Bold"/>
+              <DockPanel Margin="0,7,0,0">
+                <Button x:Name="BtnExclusive" Content="Exclusive · OFF" Click="BtnExclusive_Click"
+                        Style="{StaticResource TxtBtn}" DockPanel.Dock="Right" Margin="8,0,0,0"/>
+                <Button x:Name="BtnDsdOut" Content="DSD · DoP" Click="BtnDsdOut_Click"
+                        Style="{StaticResource TxtBtn}" DockPanel.Dock="Right" Margin="8,0,0,0" Padding="10,9"
+                        ToolTip="DSD 输出模式：DoP / Native 位流 / PCM 软解（点击循环）"/>
+                <ComboBox x:Name="DevCombo" SelectionChanged="DevCombo_SelectionChanged"
+                          Style="{StaticResource DevCombo}"/>
+              </DockPanel>
+              <TextBlock x:Name="ChainReadout" Text="OUT · SHARED · —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9.5"
+                         Foreground="{DynamicResource PhosDimBrush}" Margin="0,9,0,0" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- ══ 页二：曲目管理 ══ -->
+    <Grid x:Name="PageB" Grid.Row="1" Margin="26,14,26,0" Visibility="Collapsed">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <!-- NOW PLAYING 卡片 -->
+      <Border Grid.Row="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
+              BorderThickness="1" CornerRadius="5" Padding="20,16" Margin="0,0,0,16">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Left">
+            <TextBlock Text="NOW PLAYING" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="8.5" Foreground="{DynamicResource MutedBrush}"
+                       FontWeight="Bold"/>
+            <TextBlock x:Name="NpNameB" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
+                       Foreground="{DynamicResource TextBrush}" FontWeight="Bold" Margin="0,5,0,0"/>
+          </StackPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button Content="|◀" Click="BtnPrev_Click" Style="{StaticResource TxtBtn}"/>
+            <Button x:Name="BtnPlayLibrary" Content="▶" Click="BtnPlay_Click" Style="{StaticResource PlayBtn}" Margin="8,0" Padding="18,9"/>
+            <Button Content="▶|" Click="BtnNext_Click" Style="{StaticResource TxtBtn}"/>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+
+      <Grid Grid.Row="1">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,10">
+          <TextBlock Text="TRACK MANAGER" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="10.5"
+                     Foreground="{DynamicResource PhosDimBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" FontWeight="Bold"/>
+          <TextBlock x:Name="PlStats" Text="0 TRACKS" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI"
+                     FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="14,0,0,0"/>
+          <!-- 排序：歌名/专辑 × 正倒序 四档分开 + 导入序还原。
+               Items 由代码喂字符串（显式 ComboBoxItem 进 SelectionBoxItem 在自定义模板下不渲染） -->
+          <ComboBox x:Name="SortCombo" Style="{StaticResource DevCombo}" DockPanel.Dock="Right"
+                    Width="150" HorizontalAlignment="Right"
+                    SelectionChanged="SortCombo_SelectionChanged"/>
+        </DockPanel>
+
+        <!-- 曲目表（卡片化） -->
+        <Border Grid.Row="1" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
+                BorderThickness="1" CornerRadius="5">
+          <DataGrid x:Name="TrackList" AutoGenerateColumns="False" CanUserAddRows="False"
+                    IsReadOnly="True" SelectionUnit="FullRow" CanUserSortColumns="False"
+                    MouseDoubleClick="TrackList_MouseDoubleClick" HeadersVisibility="Column"
+                    Background="Transparent" RowBackground="Transparent" AlternatingRowBackground="Transparent"
+                    GridLinesVisibility="None"
+                    FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="11.5" RowHeight="36" BorderThickness="0">
+            <DataGrid.RowStyle>
+              <!-- 显式极简模板：默认模板内置 IsSelected 触发器会把文字刷成系统高亮白，
+                   必须整个换掉；触发器直指命名 Border 才是最终渲染层 -->
+              <Style TargetType="DataGridRow">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                <Setter Property="Template">
+                  <Setter.Value>
+                    <ControlTemplate TargetType="DataGridRow">
+                      <Border x:Name="bd" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                        <!-- ItemContainerStyle 把 CellStyle 传给单元格（TemplateBinding 编译器找不到
+                             继承的 ItemContainerStyleProperty，改普通 Binding），否则单元格会用主题默认
+                             样式把选中文字刷成系统高亮白 -->
+                        <DataGridCellsPresenter
+                            ItemContainerStyle="{Binding ItemContainerStyle, RelativeSource={RelativeSource TemplatedParent}}"
+                            SnapsToDevicePixels="True"/>
+                      </Border>
+                      <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                          <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                        </Trigger>
+                        <!-- IsSelected 在后：选中行悬停时仍亮选中色 -->
+                        <Trigger Property="IsSelected" Value="True">
+                          <Setter TargetName="bd" Property="Background" Value="{DynamicResource SelBrush}"/>
+                          <Setter Property="Foreground" Value="{DynamicResource PhosBrush}"/>
+                        </Trigger>
+                      </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                  </Setter.Value>
+                </Setter>
+              </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.CellStyle>
+              <!-- 极简单元格模板：无任何 IsSelected 视觉，让行模板的 SelBrush 透出 -->
+              <Style TargetType="DataGridCell">
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Padding" Value="10,0"/>
+                <Setter Property="Template">
+                  <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                      <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                              BorderThickness="0" SnapsToDevicePixels="True">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                      </Border>
+                    </ControlTemplate>
+                  </Setter.Value>
+                </Setter>
+              </Style>
+            </DataGrid.CellStyle>
+            <DataGrid.ColumnHeaderStyle>
+              <Style TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                <Setter Property="Padding" Value="10,10"/>
+                <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+                <Setter Property="FontSize" Value="9.5"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+              </Style>
+            </DataGrid.ColumnHeaderStyle>
+            <!-- 绑定必须 OneWay：只读属性走 TwoWay/OneWayToSource 会抛 InvalidOperationException（点击单元格即崩） -->
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="TITLE" Binding="{Binding Title, Mode=OneWay}" Width="2*"
+                                  ElementStyle="{StaticResource CellTxt}"/>
+              <DataGridTextColumn Header="ARTIST" Binding="{Binding Artist, Mode=OneWay}" Width="*"
+                                  ElementStyle="{StaticResource CellTxt}"/>
+              <DataGridTextColumn Header="ALBUM" Binding="{Binding Album, Mode=OneWay}" Width="*"
+                                  ElementStyle="{StaticResource CellTxt}"/>
+              <DataGridTextColumn Header="SPEC" Binding="{Binding Spec, Mode=OneWay}" Width="130"
+                                  ElementStyle="{StaticResource CellTxt}"/>
+            </DataGrid.Columns>
+          </DataGrid>
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
+          <Button Content="+ Add Files" Click="BtnAdd_Click" Style="{StaticResource TxtBtn}"/>
+          <Button Content="+ Add Folder" Click="BtnAddFolder_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
+        </StackPanel>
+      </Grid>
+    </Grid>
+
+    <!-- ══ 页脚 ══ -->
+    <DockPanel Grid.Row="2" Margin="26,6,26,14">
+      <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource LineBrush}" Margin="0,0,0,10"/>
+      <TextBlock Text="PHOSPHOR PA-1 · NATIVE BUILD · NAudio WASAPI · T THEME · R RANGE · D DSD · 1/2 PAGES · SPACE PLAY · F HOLD"
+                 FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}" Opacity="0.75"/>
+    </DockPanel>
+  </Grid>
+</Window>
