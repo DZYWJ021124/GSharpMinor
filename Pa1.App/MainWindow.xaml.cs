@@ -283,6 +283,8 @@ namespace Pa1.App
             SetRes("PhosBrush", T.WPhos);
             SetRes("PhosDimBrush", T.WPhosDim);
             SetRes("AmberBrush", T.WAmber);
+            /* 滚动条 thumb：Light=CLIP 琥珀、Dark=原磷光绿（用户指定，Dark 不改色） */
+            SetRes("ScrollThumbBrush", ReferenceEquals(T, ThemePal.Dark) ? T.WPhosDim : T.WAmber);
             SetRes("TrackBgBrush", T.WTrackBg);
             SetRes("HoverBrush", Color.FromArgb(26, T.WPhos.R, T.WPhos.G, T.WPhos.B));
             SetRes("SelBrush", Color.FromArgb(76, T.WPhos.R, T.WPhos.G, T.WPhos.B));

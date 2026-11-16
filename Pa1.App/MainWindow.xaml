@@ -183,9 +183,11 @@
       </Style.Triggers>
     </Style>
 
-    <!-- ══ 滚动条：细轨道 + CLIP 琥珀 Thumb，纵向/横向共用视觉语言 ══
-         Thumb 不设 MinHeight/MinWidth：固定下限会在低轨道（最小窗口高度）下
-         撑破槽位，被 WPF 布局裁剪成“上圆下平”的形变；让 thumb 跟随轨道比例。 -->
+    <!-- ══ 滚动条：细轨道 + 定高 Thumb，纵向/横向共用视觉语言 ══
+         FixedThumbTrack 把 ViewportSize 恒为 NaN → Track 走定长 thumb 路径，
+         thumb 长度 = 原始高度（MinHeight/MinWidth=26），直接采用原始高度、
+         不随视口比例缩小，低内容比例下也不会被布局裁剪成"上圆下平"。
+         颜色：Light=CLIP 琥珀 / Dark=磷光绿（ScrollThumbBrush，随主题换肤）。 -->
     <Style x:Key="ScrollRepeat" TargetType="RepeatButton">
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="IsTabStop" Value="False"/>
@@ -201,9 +203,9 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Thumb">
-            <!-- CLIP 指示灯色（AmberBrush = WAmber，随主题换肤） -->
+            <!-- Light=CLIP 琥珀、Dark=磷光绿（ScrollThumbBrush，SetRes 随主题换肤） -->
             <Border x:Name="bd" Margin="2" CornerRadius="3"
-                    Background="{DynamicResource AmberBrush}" Opacity="0.6"/>
+                    Background="{DynamicResource ScrollThumbBrush}" Opacity="0.6"/>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="bd" Property="Opacity" Value="0.95"/>
@@ -223,7 +225,7 @@
         <Setter.Value>
           <ControlTemplate TargetType="ScrollBar">
             <Grid Background="{TemplateBinding Background}">
-              <Track x:Name="PART_Track" IsDirectionReversed="True">
+              <local:FixedThumbTrack x:Name="PART_Track" IsDirectionReversed="True">
                 <Track.DecreaseRepeatButton>
                   <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Style="{StaticResource ScrollRepeat}"/>
                 </Track.DecreaseRepeatButton>
@@ -231,10 +233,10 @@
                   <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Style="{StaticResource ScrollRepeat}"/>
                 </Track.IncreaseRepeatButton>
                 <Track.Thumb>
-                  <!-- 不设 MinHeight：低轨道下固定下限会撑破槽位被布局裁剪（下限窗口高度时的形变） -->
-                  <Thumb Style="{StaticResource ScrollThumb}"/>
+                  <!-- 原始高度 26px：FixedThumbTrack 按 DesiredSize 定长排布，不会被比例槽位裁剪 -->
+                  <Thumb Style="{StaticResource ScrollThumb}" MinHeight="26"/>
                 </Track.Thumb>
-              </Track>
+              </local:FixedThumbTrack>
             </Grid>
           </ControlTemplate>
         </Setter.Value>
@@ -247,7 +249,7 @@
             <Setter.Value>
               <ControlTemplate TargetType="ScrollBar">
                 <Grid Background="{TemplateBinding Background}">
-                  <Track x:Name="PART_Track" IsDirectionReversed="False">
+                  <local:FixedThumbTrack x:Name="PART_Track" IsDirectionReversed="False">
                     <Track.DecreaseRepeatButton>
                       <RepeatButton Command="{x:Static ScrollBar.PageLeftCommand}" Style="{StaticResource ScrollRepeat}"/>
                     </Track.DecreaseRepeatButton>
@@ -255,10 +257,10 @@
                       <RepeatButton Command="{x:Static ScrollBar.PageRightCommand}" Style="{StaticResource ScrollRepeat}"/>
                     </Track.IncreaseRepeatButton>
                     <Track.Thumb>
-                      <!-- 不设 MinWidth：与纵向同理，避免窄轨道下布局裁剪形变 -->
-                      <Thumb Style="{StaticResource ScrollThumb}"/>
+                      <!-- 原始宽度 26px：与纵向同理，定长排布不裁剪 -->
+                      <Thumb Style="{StaticResource ScrollThumb}" MinWidth="26"/>
                     </Track.Thumb>
-                  </Track>
+                  </local:FixedThumbTrack>
                 </Grid>
               </ControlTemplate>
             </Setter.Value>
