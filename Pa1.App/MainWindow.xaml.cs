@@ -275,6 +275,7 @@ namespace Pa1.App
             SetRes("TextBrush", T.WText);
             SetRes("MutedBrush", T.WMuted);
             SetRes("WinBtnBrush", T.WWnd);
+            SetRes("TopBarBrush", T.WTopBar);
             SetRes("PhosBrush", T.WPhos);
             SetRes("PhosDimBrush", T.WPhosDim);
             SetRes("AmberBrush", T.WAmber);
@@ -500,7 +501,10 @@ namespace Pa1.App
             BtnDsdOut.Content = _eng.DsdMode == "native" ? "DSD · Native"
                               : _eng.DsdMode == "pcm" ? "DSD · PCM" : "DSD · DoP";
             BtnNorm.Content = _eng.NormOn ? "NORM · ON" : "NORM · OFF";
-            BtnTheme.Content = "Theme · " + (ReferenceEquals(T, ThemePal.Dark) ? "Light" : "Dark");
+            /* 主题字样：显示当前主题；Light=CLIP 琥珀色，Dark=SIG 磷光绿 */
+            bool isDark = ReferenceEquals(T, ThemePal.Dark);
+            BtnTheme.Content = isDark ? "Dark" : "Light";
+            BtnTheme.SetResourceReference(ForegroundProperty, isDark ? "PhosBrush" : "AmberBrush");
             BtnMode.Content = _pl.Mode.Label;
             BtnRange.Content = "Range · " + (int)AnalyzerMath.DbFloor + "dB";
 

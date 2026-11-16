@@ -22,6 +22,7 @@
     <SolidColorBrush x:Key="TextBrush" Color="#e9e7dc"/>
     <SolidColorBrush x:Key="MutedBrush" Color="#8a887b"/>
     <SolidColorBrush x:Key="WinBtnBrush" Color="#b5b2a3"/>
+    <SolidColorBrush x:Key="TopBarBrush" Color="#040503"/>
     <SolidColorBrush x:Key="PhosBrush" Color="#3dff85"/>
     <SolidColorBrush x:Key="PhosDimBrush" Color="#2ca35c"/>
     <SolidColorBrush x:Key="AmberBrush" Color="#ffb340"/>
@@ -120,6 +121,25 @@
                 <Setter TargetName="bd" Property="Background" Value="#55ffb340"/>
               </Trigger>
             </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- ══ 主题字样（无边框，仅 Light/Dark 字样；颜色随主题联动） ══ -->
+    <Style x:Key="ThemeTag" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground" Value="{DynamicResource PhosBrush}"/>
+      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontSize" Value="10.5"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
@@ -395,15 +415,20 @@
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
 
-      <!-- 第一排：最小化 / 最大化 / 关闭（靠上部、右对齐） -->
-      <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-        <Button x:Name="BtnMinimize" Content="–" Click="BtnMinimize_Click" Style="{StaticResource WinBtn}"
-                ToolTip="最小化"/>
-        <Button x:Name="BtnMaximize" Content="□" Click="BtnMaximize_Click" Style="{StaticResource WinBtn}"
-                ToolTip="最大化"/>
-        <Button x:Name="BtnClose" Content="×" Click="BtnClose_Click" Style="{StaticResource WinCloseBtn}"
-                FontSize="18" ToolTip="关闭"/>
-      </StackPanel>
+      <!-- 第一排：主题字样 + 窗口控制（深色背景带，元素上下居中、整组居中） -->
+      <local:SquircleBorder Grid.Row="0" Background="{DynamicResource TopBarBrush}" CornerRadius="6"
+                            Padding="16,3,10,3">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Button x:Name="BtnTheme" Content="Light" Click="BtnTheme_Click" Style="{StaticResource ThemeTag}"
+                  Margin="0,0,16,0" ToolTip="切换主题（T 键）"/>
+          <Button x:Name="BtnMinimize" Content="–" Click="BtnMinimize_Click" Style="{StaticResource WinBtn}"
+                  ToolTip="最小化"/>
+          <Button x:Name="BtnMaximize" Content="□" Click="BtnMaximize_Click" Style="{StaticResource WinBtn}"
+                  ToolTip="最大化"/>
+          <Button x:Name="BtnClose" Content="×" Click="BtnClose_Click" Style="{StaticResource WinCloseBtn}"
+                  FontSize="18" ToolTip="关闭"/>
+        </StackPanel>
+      </local:SquircleBorder>
 
       <!-- 第二排：品牌 + 信号灯 / 页签 / 主题（相对位置在下部） -->
       <Grid Grid.Row="1">
@@ -439,8 +464,6 @@
           </StackPanel>
           <Button x:Name="TabAnalyzer" Content="ANALYZER" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
           <Button x:Name="TabLibrary" Content="LIBRARY" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
-          <Button x:Name="BtnTheme" Content="Theme · Light" Click="BtnTheme_Click" Style="{StaticResource TxtBtn}"
-                  Width="112" Margin="14,0,0,0"/>
         </StackPanel>
       </Grid>
     </Grid>

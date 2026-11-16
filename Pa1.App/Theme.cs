@@ -13,7 +13,7 @@ namespace Pa1.App
         public SKColor PeakLine, PeakDot, Idle, Hold, Hatch;
         /* 窗体（WPF） */
         public Color WBg, WPanel, WPanel2, WLine, WText, WMuted, WPhos, WPhosDim, WAmber;
-        public Color WTrackBg, WThumbRing, WReadoutBg, WShadow, WWnd;
+        public Color WTrackBg, WThumbRing, WReadoutBg, WShadow, WWnd, WTopBar;
 
         public static readonly ThemePal Dark = new ThemePal
         {
@@ -35,6 +35,8 @@ namespace Pa1.App
             WReadoutBg = C(0x04, 0x06, 0x03), WShadow = C(0x00, 0x00, 0x00),
             /* 窗口控制符：Dark 底上比 WMuted 更浅（更易辨认） */
             WWnd = C(0xb5, 0xb2, 0xa3),
+            /* 第一排背景带：比 WBg 更暗 */
+            WTopBar = C(0x04, 0x05, 0x03),
         };
 
         public static readonly ThemePal Light = new ThemePal
@@ -55,6 +57,8 @@ namespace Pa1.App
             WReadoutBg = C(0xfa, 0xf8, 0xf0), WShadow = C(0x80, 0x72, 0x48),
             /* 窗口控制符：Light 底上比 WMuted 更深（更易辨认） */
             WWnd = C(0x3a, 0x38, 0x29),
+            /* 第一排背景带：比 WBg 更深 */
+            WTopBar = C(0xd8, 0xd2, 0xbc),
         };
 
         static SKColor Rgb(byte r, byte g, byte b) { return new SKColor(r, g, b); }
