@@ -131,8 +131,15 @@ namespace Pa1.App
             VolSlider.Value = Settings.GetDouble("vol", 80);   /* 触发 Vol_ValueChanged */
             SyncUI();
 
+            int cliAdded = 0, cliSkipped = 0;   /* --add 全程累计（多条 --add 不逐条覆盖统计） */
             foreach (var a in Environment.GetCommandLineArgs())
             {
+                try
+                {
+                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                        DateTime.Now + " [cli] " + a + Environment.NewLine);
+                }
+                catch { }
                 if (a == "--page=library") SetPage("library");
                 else if (a == "--page=analyzer") SetPage("analyzer");
                 else if (a == "--theme=light") { Theme.Set("light"); UpdateThemeBrushes(); SyncUI(); SpecView.InvalidateVisual(); }
@@ -168,19 +175,39 @@ namespace Pa1.App
                 else if (a.StartsWith("--add="))
                 {
                     string p = a.Substring(6);
+                    var batch = new List<string>();
                     try
                     {
-                        var meta = TagReader.Read(p);
-                        if (meta.Spec != null)
-                        {
-                            _paths[meta] = p;
-                            _rows.Add(new TrackRow { Meta = meta, Seq = _seqCounter++, Spec = FormatProbe.SpecLabel(meta.Spec) });
-                            _pl.Tracks.Add(meta);
-                        }
+                        if (Directory.Exists(p)) ScanAudioDir(p, batch);   /* CLI 亦可整目录批量 */
+                        else if (File.Exists(p)) batch.Add(p);
                     }
                     catch { }
+                    int skipped = 0;
+                    foreach (var f in batch)
+                    {
+                        try
+                        {
+                            var meta = TagReader.Read(f);
+                            if (meta.Spec != null)
+                            {
+                                if (AddTrackIfNew(meta, f)) cliAdded++;
+                                else cliSkipped++;   /* 去重校验：已有/批内重复 */
+                            }
+                        }
+                        catch { }
+                    }
                     TrackList.ItemsSource = _rows;
-                    PlStats.Text = _rows.Count + " TRACKS";
+                    PlStats.Text = _rows.Count + " TRACKS"
+                        + (cliAdded > 0 ? " · +" + cliAdded + " ADDED" : "")
+                        + (cliSkipped > 0 ? " · " + cliSkipped + " SKIPPED" : "");
+                    try
+                    {
+                        File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                            DateTime.Now + " [add-cli] dir=" + p + " batch=" + batch.Count
+                            + " total +" + cliAdded + " added, " + cliSkipped + " skipped, total=" + _rows.Count
+                            + Environment.NewLine);
+                    }
+                    catch { }
                 }
             }
             ApplySort(_sortMode);          /* CLI --add 同步路径：立即按档重排 */
@@ -558,6 +585,18 @@ namespace Pa1.App
 
         string FindPath(TrackMeta m) { return _paths.ContainsKey(m) ? _paths[m] : ""; }
         readonly Dictionary<TrackMeta, string> _paths = new Dictionary<TrackMeta, string>();
+        readonly HashSet<string> _pathKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase); /* 规范化路径键：添加去重校验 */
+
+        /// <summary>入库一条曲目并登记路径键；键已存在（重复添加）则拒绝并返回 false。</summary>
+        bool AddTrackIfNew(TrackMeta meta, string path)
+        {
+            string k = AddGuard.Key(path);
+            if (k.Length == 0 || !_pathKeys.Add(k)) return false;
+            _paths[meta] = path;
+            _rows.Add(new TrackRow { Meta = meta, Seq = _seqCounter++, Spec = FormatProbe.SpecLabel(meta.Spec) });
+            _pl.Tracks.Add(meta);
+            return true;
+        }
 
         void RefreshNowPlaying()
         {
@@ -631,10 +670,8 @@ namespace Pa1.App
             var dirs = FolderPick.PickFolders(_lastDir);
             if (dirs == null || dirs.Count == 0) return;
             _lastDir = dirs[dirs.Count - 1];   /* 记住最后选中的目录作下次起始位 */
-            var files = new List<string>();
-            foreach (var dir in dirs) ScanAudioDir(dir, files);
-            if (files.Count == 0) { PlStats.Text = "NO AUDIO IN FOLDER"; return; }
-            AddFilesAsync(files);
+            BtnAdd.Content = "Scanning…";
+            AddFilesAsync(dirs);               /* 目录在后台线程递归展开，大文件夹不卡 UI */
         }
 
         /* 拖放：文件与文件夹皆可（文件夹递归扫音频） */
@@ -648,17 +685,7 @@ namespace Pa1.App
         {
             var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
             if (paths == null || paths.Length == 0) return;
-            var files = new List<string>();
-            foreach (var p in paths)
-            {
-                try
-                {
-                    if (Directory.Exists(p)) ScanAudioDir(p, files);
-                    else if (File.Exists(p)) files.Add(p);
-                }
-                catch { }
-            }
-            if (files.Count > 0) AddFilesAsync(files);
+            AddFilesAsync(paths);   /* 文件与文件夹皆可（目录后台递归展开） */
         }
 
         static readonly HashSet<string> AudioExt = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -753,16 +780,30 @@ namespace Pa1.App
             AddFilesAsync(files);
         }
 
-        /// <summary>批量读标签入列表（拖放/文件/文件夹共用）；标签读取在线程池，防卡 UI。</summary>
-        void AddFilesAsync(IList<string> files, Action afterDone = null)
+        /// <summary>批量添加：files 可混文件与文件夹（目录在后台递归展开，大文件夹不卡 UI）。
+        /// 标签读取在线程池；入库前做去重校验（AddGuard）：与曲库已有/批内重复的路径直接跳过。</summary>
+        void AddFilesAsync(IList<string> inputs, Action afterDone = null)
         {
-            if (files == null || files.Count == 0) return;
+            if (inputs == null || inputs.Count == 0) return;
             BtnAdd.IsEnabled = false;
             BtnAdd.Content = "Reading…";
+            var existing = new List<string>(_pathKeys);   /* 路径键快照供后台过滤（UI 线程外不碰 _pathKeys） */
             System.Threading.Tasks.Task.Run(() =>
             {
+                var files = new List<string>();
+                foreach (var p in inputs)
+                {
+                    try
+                    {
+                        if (Directory.Exists(p)) ScanAudioDir(p, files);
+                        else if (File.Exists(p)) files.Add(p);
+                    }
+                    catch { }
+                }
+                int skipExist, skipDup;
+                var fresh = AddGuard.FilterNew(files, existing, out skipExist, out skipDup);
                 var pairs = new List<KeyValuePair<TrackMeta, string>>();
-                foreach (var f in files)
+                foreach (var f in fresh)
                 {
                     try
                     {
@@ -771,20 +812,40 @@ namespace Pa1.App
                     }
                     catch { }
                 }
+                int notAudio = fresh.Count - pairs.Count;
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
+                    int added = 0, skipped = skipExist + skipDup;
+                    var addedPairs = new List<KeyValuePair<TrackMeta, string>>();
                     foreach (var kv in pairs)
-                    {
-                        _paths[kv.Key] = kv.Value;
-                        _rows.Add(new TrackRow { Meta = kv.Key, Seq = _seqCounter++, Spec = FormatProbe.SpecLabel(kv.Key.Spec) });
-                        _pl.Tracks.Add(kv.Key);
-                    }
+                        if (AddTrackIfNew(kv.Key, kv.Value)) { added++; addedPairs.Add(kv); }
+                        else skipped++;                      /* 并发兜底：本批内路径键已登记 */
                     TrackList.ItemsSource = _rows;
-                    PlStats.Text = _rows.Count + " TRACKS";
+                    if (files.Count == 0)
+                        PlStats.Text = "NO AUDIO IN FOLDER";
+                    else if (_restorePending)
+                        PlStats.Text = _rows.Count + " TRACKS";   /* 曲库恢复：静默恢复，不刷添加统计 */
+                    else
+                    {
+                        string msg = _rows.Count + " TRACKS";
+                        if (added > 0) msg += " · +" + added + " ADDED";
+                        if (skipped > 0) msg += " · " + skipped + " SKIPPED";
+                        if (notAudio > 0) msg += " · " + notAudio + " NOT AUDIO";
+                        PlStats.Text = msg;
+                    }
+                    try
+                    {
+                        File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                            DateTime.Now + " [add] inputs=" + inputs.Count + " files=" + files.Count
+                            + " fresh=" + fresh.Count + " +" + added + " added, " + skipped + " skipped ("
+                            + skipExist + " exist + " + skipDup + " batch), " + notAudio + " not-audio, total=" + _rows.Count
+                            + Environment.NewLine);
+                    }
+                    catch { }
                     _pl.InvalidateShuffle();
                     ApplySort(_sortMode);   /* 新增后按当前档位重排（导入序档按 Seq 稳定） */
                     /* 响度缓存预热：无 RG 标签的曲目排队后台扫描（串行，播前大概率已就绪） */
-                    foreach (var kv in pairs)
+                    foreach (var kv in addedPairs)
                         if (float.IsNaN(kv.Key.RgGainDb))
                             LoudnessScanner.Request(kv.Value);
                     _restorePending = false;

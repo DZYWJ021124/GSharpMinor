@@ -1004,6 +1004,38 @@ namespace Pa1.Tests
                 Ok("narrowband near-peak smooth", Math.Abs(v3) < 1.0, v3.ToString("0.00") + " dB");
             }
 
+            /* ── 7. 添加去重校验（AddGuard） ── */
+            {
+                /* 路径键规范化：斜杠/./.. 段/尾分隔符归一；大小写差异由 IgnoreCase 比较覆盖 */
+                string k1 = AddGuard.Key(@"C:\Music\Album\01.flac");
+                string k2 = AddGuard.Key(@"c:/music/album/01.flac");
+                string k3 = AddGuard.Key(@"C:\Music\Album\.\sub\..\01.flac");
+                string k4 = AddGuard.Key(@"C:\Music\Album\01.flac\");
+                Ok("AddGuard.Key 规范化（斜杠/../尾分隔符）",
+                    k1 == k3 && k1 == k4
+                    && string.Equals(k1, k2, StringComparison.OrdinalIgnoreCase), k1 + " | " + k2);
+
+                Ok("AddGuard.Key 空输入安全", AddGuard.Key(null) == "" && AddGuard.Key("  ") == "");
+
+                /* 批内去重：同一文件两种写法只留一个 */
+                int ex, dup;
+                var fresh = AddGuard.FilterNew(new[] {
+                    @"C:\Music\a.flac", @"c:\MUSIC\A.flac", @"C:\Music\b.flac" }, null, out ex, out dup);
+                Ok("AddGuard 批内去重（同文件不同写法）",
+                    fresh.Count == 2 && dup == 1 && ex == 0, "n=" + fresh.Count + " dup=" + dup);
+
+                /* 库内去重：已在曲库的跳过、计数分类正确、新文件保序 */
+                var lib = new[] { @"C:\Music\b.flac", @"C:\Music\c.flac" };
+                var fresh2 = AddGuard.FilterNew(new[] {
+                    @"C:\Music\b.flac", @"C:\Music\d.flac", @"C:\Music\D.FLAC", @"C:\Music\e.flac" },
+                    lib, out ex, out dup);
+                Ok("AddGuard 库内+批内去重（分类计数、保序）",
+                    ex == 1 && dup == 1 && fresh2.Count == 2
+                    && fresh2[0].EndsWith("d.flac", StringComparison.OrdinalIgnoreCase)
+                    && fresh2[1].EndsWith("e.flac", StringComparison.OrdinalIgnoreCase),
+                    "ex=" + ex + " dup=" + dup + " n=" + fresh2.Count);
+            }
+
             Console.WriteLine();
             Console.WriteLine("=== " + _pass + " passed, " + _fail + " failed ===");
             return _fail == 0 ? 0 : 1;
