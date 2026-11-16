@@ -274,6 +274,7 @@ namespace Pa1.App
             SetRes("LineBrush", T.WLine);
             SetRes("TextBrush", T.WText);
             SetRes("MutedBrush", T.WMuted);
+            SetRes("WinBtnBrush", T.WWnd);
             SetRes("PhosBrush", T.WPhos);
             SetRes("PhosDimBrush", T.WPhosDim);
             SetRes("AmberBrush", T.WAmber);

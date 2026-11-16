@@ -21,6 +21,7 @@
     <SolidColorBrush x:Key="LineBrush" Color="#2c2f24"/>
     <SolidColorBrush x:Key="TextBrush" Color="#e9e7dc"/>
     <SolidColorBrush x:Key="MutedBrush" Color="#8a887b"/>
+    <SolidColorBrush x:Key="WinBtnBrush" Color="#b5b2a3"/>
     <SolidColorBrush x:Key="PhosBrush" Color="#3dff85"/>
     <SolidColorBrush x:Key="PhosDimBrush" Color="#2ca35c"/>
     <SolidColorBrush x:Key="AmberBrush" Color="#ffb340"/>
@@ -124,12 +125,12 @@
       </Setter>
     </Style>
 
-    <!-- ══ 自绘窗口按钮 ══ -->
+    <!-- ══ 自绘窗口按钮（WinBtnBrush：Light 更深 / Dark 更浅） ══ -->
     <Style x:Key="WinBtn" TargetType="Button">
       <Setter Property="Width" Value="38"/>
       <Setter Property="Height" Value="34"/>
       <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource WinBtnBrush}"/>
       <Setter Property="BorderThickness" Value="0"/>
       <Setter Property="FontFamily" Value="Consolas"/>
       <Setter Property="FontSize" Value="14"/>
@@ -386,47 +387,16 @@
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <!-- ══ 顶部品牌 / 页签 ══ -->
+    <!-- ══ 顶部：第一排窗口控制（靠上），第二排品牌/功能（在下部） ══ -->
     <Grid x:Name="TitleBar" Grid.Row="0" Margin="26,12,20,0"
           MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="Auto"/>
-      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
 
-      <StackPanel Grid.Column="0" VerticalAlignment="Center">
-        <TextBlock x:Name="BrandText" Text="PHOSPHOR" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="32" FontWeight="Bold"
-                   Foreground="{DynamicResource PhosBrush}">
-          <TextBlock.Effect>
-            <DropShadowEffect x:Name="BrandGlow" BlurRadius="22" ShadowDepth="0" Opacity="0.5" Color="#3dff85"/>
-          </TextBlock.Effect>
-        </TextBlock>
-        <TextBlock Text="PA-1 · SPECTRUM ANALYZER" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9.5"
-                   Foreground="{DynamicResource MutedBrush}" Margin="3,7,0,0" FontWeight="Bold"/>
-      </StackPanel>
-
-      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,22,0">
-          <Ellipse x:Name="LedSignal" Width="9" Height="9" Fill="{DynamicResource TrackBgBrush}" Margin="0,0,7,0">
-            <Ellipse.Effect>
-              <DropShadowEffect x:Name="GlowSig" BlurRadius="10" ShadowDepth="0" Opacity="0" Color="#3dff85"/>
-            </Ellipse.Effect>
-          </Ellipse>
-          <TextBlock Text="SIG" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
-                     VerticalAlignment="Center" FontWeight="Bold"/>
-          <Ellipse x:Name="LedClip" Width="9" Height="9" Fill="{DynamicResource TrackBgBrush}" Margin="16,0,7,0">
-            <Ellipse.Effect>
-              <DropShadowEffect x:Name="GlowClip" BlurRadius="10" ShadowDepth="0" Opacity="0" Color="#ffb340"/>
-            </Ellipse.Effect>
-          </Ellipse>
-          <TextBlock Text="CLIP" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
-                     VerticalAlignment="Center" FontWeight="Bold"/>
-        </StackPanel>
-        <Button x:Name="TabAnalyzer" Content="ANALYZER" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
-        <Button x:Name="TabLibrary" Content="LIBRARY" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
-        <Button x:Name="BtnTheme" Content="Theme · Light" Click="BtnTheme_Click" Style="{StaticResource TxtBtn}"
-                Width="112" Margin="14,0,0,0"/>
-        <Rectangle Width="1" Height="18" Fill="{DynamicResource LineBrush}" Margin="14,0,8,0"/>
+      <!-- 第一排：最小化 / 最大化 / 关闭（靠上部、右对齐） -->
+      <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
         <Button x:Name="BtnMinimize" Content="–" Click="BtnMinimize_Click" Style="{StaticResource WinBtn}"
                 ToolTip="最小化"/>
         <Button x:Name="BtnMaximize" Content="□" Click="BtnMaximize_Click" Style="{StaticResource WinBtn}"
@@ -434,6 +404,45 @@
         <Button x:Name="BtnClose" Content="×" Click="BtnClose_Click" Style="{StaticResource WinCloseBtn}"
                 FontSize="18" ToolTip="关闭"/>
       </StackPanel>
+
+      <!-- 第二排：品牌 + 信号灯 / 页签 / 主题（相对位置在下部） -->
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock x:Name="BrandText" Grid.Column="0" Text="PHOSPHOR" VerticalAlignment="Center"
+                   FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="32" FontWeight="Bold"
+                   Foreground="{DynamicResource PhosBrush}">
+          <TextBlock.Effect>
+            <DropShadowEffect x:Name="BrandGlow" BlurRadius="22" ShadowDepth="0" Opacity="0.5" Color="#3dff85"/>
+          </TextBlock.Effect>
+        </TextBlock>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,22,0">
+            <Ellipse x:Name="LedSignal" Width="9" Height="9" Fill="{DynamicResource TrackBgBrush}" Margin="0,0,7,0">
+              <Ellipse.Effect>
+                <DropShadowEffect x:Name="GlowSig" BlurRadius="10" ShadowDepth="0" Opacity="0" Color="#3dff85"/>
+              </Ellipse.Effect>
+            </Ellipse>
+            <TextBlock Text="SIG" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                       VerticalAlignment="Center" FontWeight="Bold"/>
+            <Ellipse x:Name="LedClip" Width="9" Height="9" Fill="{DynamicResource TrackBgBrush}" Margin="16,0,7,0">
+              <Ellipse.Effect>
+                <DropShadowEffect x:Name="GlowClip" BlurRadius="10" ShadowDepth="0" Opacity="0" Color="#ffb340"/>
+              </Ellipse.Effect>
+            </Ellipse>
+            <TextBlock Text="CLIP" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                       VerticalAlignment="Center" FontWeight="Bold"/>
+          </StackPanel>
+          <Button x:Name="TabAnalyzer" Content="ANALYZER" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
+          <Button x:Name="TabLibrary" Content="LIBRARY" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
+          <Button x:Name="BtnTheme" Content="Theme · Light" Click="BtnTheme_Click" Style="{StaticResource TxtBtn}"
+                  Width="112" Margin="14,0,0,0"/>
+        </StackPanel>
+      </Grid>
     </Grid>
     <Border Grid.Row="0" Height="1" VerticalAlignment="Bottom" Margin="26,10,26,0"
             Background="{DynamicResource LineBrush}"/>
