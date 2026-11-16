@@ -224,10 +224,10 @@
             <Grid Background="{TemplateBinding Background}">
               <Track x:Name="PART_Track" IsDirectionReversed="True">
                 <Track.DecreaseRepeatButton>
-                  <RepeatButton Command="ScrollBar.DecreaseVerticalCommand" Style="{StaticResource ScrollRepeat}"/>
+                  <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Style="{StaticResource ScrollRepeat}"/>
                 </Track.DecreaseRepeatButton>
                 <Track.IncreaseRepeatButton>
-                  <RepeatButton Command="ScrollBar.IncreaseVerticalCommand" Style="{StaticResource ScrollRepeat}"/>
+                  <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Style="{StaticResource ScrollRepeat}"/>
                 </Track.IncreaseRepeatButton>
                 <Track.Thumb>
                   <Thumb MinHeight="26" Style="{StaticResource ScrollThumb}"/>
@@ -247,10 +247,10 @@
                 <Grid Background="{TemplateBinding Background}">
                   <Track x:Name="PART_Track" IsDirectionReversed="False">
                     <Track.DecreaseRepeatButton>
-                      <RepeatButton Command="ScrollBar.DecreaseHorizontalCommand" Style="{StaticResource ScrollRepeat}"/>
+                      <RepeatButton Command="{x:Static ScrollBar.PageLeftCommand}" Style="{StaticResource ScrollRepeat}"/>
                     </Track.DecreaseRepeatButton>
                     <Track.IncreaseRepeatButton>
-                      <RepeatButton Command="ScrollBar.IncreaseHorizontalCommand" Style="{StaticResource ScrollRepeat}"/>
+                      <RepeatButton Command="{x:Static ScrollBar.PageRightCommand}" Style="{StaticResource ScrollRepeat}"/>
                     </Track.IncreaseRepeatButton>
                     <Track.Thumb>
                       <Thumb MinWidth="26" Style="{StaticResource ScrollThumb}"/>
@@ -274,7 +274,7 @@
               <Border Height="4" CornerRadius="2" Background="{DynamicResource TrackBgBrush}" VerticalAlignment="Center"/>
               <Track x:Name="PART_Track" VerticalAlignment="Center">
                 <Track.DecreaseRepeatButton>
-                  <RepeatButton Command="Slider.DecreaseLarge" IsTabStop="False" Focusable="False">
+                  <RepeatButton Command="{x:Static Slider.DecreaseLarge}" IsTabStop="False" Focusable="False">
                     <RepeatButton.Template>
                       <ControlTemplate TargetType="RepeatButton">
                         <Border Height="4" CornerRadius="2" Background="{DynamicResource PhosDimBrush}" VerticalAlignment="Center" Margin="0,0,0,0"/>
@@ -283,7 +283,7 @@
                   </RepeatButton>
                 </Track.DecreaseRepeatButton>
                 <Track.IncreaseRepeatButton>
-                  <RepeatButton Command="Slider.IncreaseLarge" IsTabStop="False" Focusable="False">
+                  <RepeatButton Command="{x:Static Slider.IncreaseLarge}" IsTabStop="False" Focusable="False">
                     <RepeatButton.Template>
                       <ControlTemplate TargetType="RepeatButton">
                         <Border Background="Transparent"/>
