@@ -374,6 +374,8 @@
                     ToolTip="播放模式"/>
             <Button x:Name="BtnRange" Content="Range · -96dB" Click="BtnRange_Click" Style="{StaticResource TxtBtn}"
                     Margin="10,0,0,0" ToolTip="频谱量程下限（R 循环切换）"/>
+            <Button x:Name="BtnNorm" Content="NORM · OFF" Click="BtnNorm_Click" Style="{StaticResource TxtBtn}"
+                    Margin="10,0,0,0" ToolTip="响度归一化：目标 -18 LUFS（ReplayGain 标签优先，缺失自动扫描；N 键开关）"/>
             <Button x:Name="BtnAdd" Content="+ Add Files" Click="BtnAdd_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
             <Button x:Name="BtnAddFolder" Content="+ Add Folder" Click="BtnAddFolder_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
           </StackPanel>
@@ -562,7 +564,7 @@
     <!-- ══ 页脚 ══ -->
     <DockPanel Grid.Row="2" Margin="26,6,26,14">
       <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource LineBrush}" Margin="0,0,0,10"/>
-      <TextBlock Text="PHOSPHOR PA-1 · NATIVE BUILD · NAudio WASAPI · T THEME · R RANGE · D DSD · 1/2 PAGES · SPACE PLAY · F HOLD"
+      <TextBlock Text="PHOSPHOR PA-1 · NATIVE BUILD · NAudio WASAPI · T THEME · R RANGE · D DSD · N NORM · 1/2 PAGES · SPACE PLAY · F HOLD"
                  FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}" Opacity="0.75"/>
     </DockPanel>
   </Grid>

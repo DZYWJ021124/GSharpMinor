@@ -112,6 +112,10 @@ namespace Pa1.App
             /* 恢复 DSD 输出模式（dop/native/pcm，非法值回 dop） */
             string dsdMode = Settings.Get("dsd.mode", "dop");
             _eng.DsdMode = dsdMode == "native" || dsdMode == "pcm" ? dsdMode : "dop";
+            /* 恢复响度归一化（norm.on / norm.target） */
+            _eng.NormOn = Settings.Get("norm.on", "0") == "1";
+            double nt = Settings.GetDouble("norm.target", -18);
+            if (nt >= -40 && nt <= -5) _eng.NormTarget = nt;
             _pl.ModeIdx = Settings.GetInt("mode", 0);
             if (_pl.ModeIdx < 0 || _pl.ModeIdx >= PlayMode.All.Length) _pl.ModeIdx = 0;
             /* 恢复频谱量程（只接受 -60/-72/-96 三档） */
@@ -127,8 +131,15 @@ namespace Pa1.App
             VolSlider.Value = Settings.GetDouble("vol", 80);   /* 触发 Vol_ValueChanged */
             SyncUI();
 
+            int cliAdded = 0, cliSkipped = 0;   /* --add 全程累计（多条 --add 不逐条覆盖统计） */
             foreach (var a in Environment.GetCommandLineArgs())
             {
+                try
+                {
+                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                        DateTime.Now + " [cli] " + a + Environment.NewLine);
+                }
+                catch { }
                 if (a == "--page=library") SetPage("library");
                 else if (a == "--page=analyzer") SetPage("analyzer");
                 else if (a == "--theme=light") { Theme.Set("light"); UpdateThemeBrushes(); SyncUI(); SpecView.InvalidateVisual(); }
@@ -149,6 +160,13 @@ namespace Pa1.App
                               : sv == "album-az" ? 3 : sv == "album-za" ? 4 : 0;
                     if (SortCombo != null) SortCombo.SelectedIndex = _sortMode;
                 }
+                else if (a == "--norm") _eng.SetNorm(true);
+                else if (a.StartsWith("--norm-target="))
+                {
+                    double nt2;
+                    if (double.TryParse(a.Substring(14), NumberStyles.Float, CultureInfo.InvariantCulture, out nt2)
+                        && nt2 >= -40 && nt2 <= -5) _eng.NormTarget = nt2;
+                }
                 else if (a.StartsWith("--dsd="))
                 {
                     string dv = a.Substring(6).ToLowerInvariant();
@@ -157,19 +175,39 @@ namespace Pa1.App
                 else if (a.StartsWith("--add="))
                 {
                     string p = a.Substring(6);
+                    var batch = new List<string>();
                     try
                     {
-                        var meta = TagReader.Read(p);
-                        if (meta.Spec != null)
-                        {
-                            _paths[meta] = p;
-                            _rows.Add(new TrackRow { Meta = meta, Seq = _seqCounter++, Spec = FormatProbe.SpecLabel(meta.Spec) });
-                            _pl.Tracks.Add(meta);
-                        }
+                        if (Directory.Exists(p)) ScanAudioDir(p, batch);   /* CLI 亦可整目录批量 */
+                        else if (File.Exists(p)) batch.Add(p);
                     }
                     catch { }
+                    int skipped = 0;
+                    foreach (var f in batch)
+                    {
+                        try
+                        {
+                            var meta = TagReader.Read(f);
+                            if (meta.Spec != null)
+                            {
+                                if (AddTrackIfNew(meta, f)) cliAdded++;
+                                else cliSkipped++;   /* 去重校验：已有/批内重复 */
+                            }
+                        }
+                        catch { }
+                    }
                     TrackList.ItemsSource = _rows;
-                    PlStats.Text = _rows.Count + " TRACKS";
+                    PlStats.Text = _rows.Count + " TRACKS"
+                        + (cliAdded > 0 ? " · +" + cliAdded + " ADDED" : "")
+                        + (cliSkipped > 0 ? " · " + cliSkipped + " SKIPPED" : "");
+                    try
+                    {
+                        File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                            DateTime.Now + " [add-cli] dir=" + p + " batch=" + batch.Count
+                            + " total +" + cliAdded + " added, " + cliSkipped + " skipped, total=" + _rows.Count
+                            + Environment.NewLine);
+                    }
+                    catch { }
                 }
             }
             ApplySort(_sortMode);          /* CLI --add 同步路径：立即按档重排 */
@@ -194,6 +232,8 @@ namespace Pa1.App
             Settings.Set("dbfloor", AnalyzerMath.DbFloor.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Settings.Set("exclusive", _eng.DevSvc.ExclusiveOn ? "1" : "0");
             Settings.Set("dsd.mode", _eng.DsdMode);
+            Settings.Set("norm.on", _eng.NormOn ? "1" : "0");
+            Settings.Set("norm.target", _eng.NormTarget.ToString(CultureInfo.InvariantCulture));
             Settings.Set("mode", _pl.ModeIdx.ToString());
             Settings.Set("page", _page);
             Settings.Set("vol", ((int)VolSlider.Value).ToString());
@@ -432,10 +472,16 @@ namespace Pa1.App
             if (_eng.DevSvc.ExclusiveOn && _eng.Error != null && _eng.Error.StartsWith("EXCLUSIVE FAILED"))
                 excl = "EXCL · FALLBACK";
             ChainReadout.Text = "OUT · " + excl + " · " + planLbl + " · DEV " + devName;
+            if (_eng.NormOn && _eng.NormSource == "N/A")
+                ChainReadout.Text += " · NORM N/A (bitstream)";
+            else if (_eng.NormOn && _eng.NormSource != "-")
+                ChainReadout.Text += " · NORM " + _eng.NormGainDb.ToString("+0.0;-0.0;0.0")
+                    + "dB " + _eng.NormSource;
 
             BtnExclusive.Content = _eng.DevSvc.ExclusiveOn ? "Exclusive · ON" : "Exclusive · OFF";
             BtnDsdOut.Content = _eng.DsdMode == "native" ? "DSD · Native"
                               : _eng.DsdMode == "pcm" ? "DSD · PCM" : "DSD · DoP";
+            BtnNorm.Content = _eng.NormOn ? "NORM · ON" : "NORM · OFF";
             BtnTheme.Content = "Theme · " + (ReferenceEquals(T, ThemePal.Dark) ? "Light" : "Dark");
             BtnMode.Content = _pl.Mode.Label;
             BtnRange.Content = "Range · " + (int)AnalyzerMath.DbFloor + "dB";
@@ -539,6 +585,18 @@ namespace Pa1.App
 
         string FindPath(TrackMeta m) { return _paths.ContainsKey(m) ? _paths[m] : ""; }
         readonly Dictionary<TrackMeta, string> _paths = new Dictionary<TrackMeta, string>();
+        readonly HashSet<string> _pathKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase); /* 规范化路径键：添加去重校验 */
+
+        /// <summary>入库一条曲目并登记路径键；键已存在（重复添加）则拒绝并返回 false。</summary>
+        bool AddTrackIfNew(TrackMeta meta, string path)
+        {
+            string k = AddGuard.Key(path);
+            if (k.Length == 0 || !_pathKeys.Add(k)) return false;
+            _paths[meta] = path;
+            _rows.Add(new TrackRow { Meta = meta, Seq = _seqCounter++, Spec = FormatProbe.SpecLabel(meta.Spec) });
+            _pl.Tracks.Add(meta);
+            return true;
+        }
 
         void RefreshNowPlaying()
         {
@@ -576,6 +634,14 @@ namespace Pa1.App
             Persist();
         }
 
+        /// <summary>响度归一化开关（即时生效不重载；增益来源 TAG/SCAN/CACHE 显示于 OUT 读数）。</summary>
+        void BtnNorm_Click(object s, RoutedEventArgs e)
+        {
+            _eng.SetNorm(!_eng.NormOn);
+            SyncUI();
+            Persist();
+        }
+
         void DevCombo_SelectionChanged(object s, SelectionChangedEventArgs e)
         {
             if (DevCombo.SelectedIndex < 0) return;
@@ -604,10 +670,8 @@ namespace Pa1.App
             var dirs = FolderPick.PickFolders(_lastDir);
             if (dirs == null || dirs.Count == 0) return;
             _lastDir = dirs[dirs.Count - 1];   /* 记住最后选中的目录作下次起始位 */
-            var files = new List<string>();
-            foreach (var dir in dirs) ScanAudioDir(dir, files);
-            if (files.Count == 0) { PlStats.Text = "NO AUDIO IN FOLDER"; return; }
-            AddFilesAsync(files);
+            BtnAdd.Content = "Scanning…";
+            AddFilesAsync(dirs);               /* 目录在后台线程递归展开，大文件夹不卡 UI */
         }
 
         /* 拖放：文件与文件夹皆可（文件夹递归扫音频） */
@@ -621,17 +685,7 @@ namespace Pa1.App
         {
             var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
             if (paths == null || paths.Length == 0) return;
-            var files = new List<string>();
-            foreach (var p in paths)
-            {
-                try
-                {
-                    if (Directory.Exists(p)) ScanAudioDir(p, files);
-                    else if (File.Exists(p)) files.Add(p);
-                }
-                catch { }
-            }
-            if (files.Count > 0) AddFilesAsync(files);
+            AddFilesAsync(paths);   /* 文件与文件夹皆可（目录后台递归展开） */
         }
 
         static readonly HashSet<string> AudioExt = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -726,16 +780,30 @@ namespace Pa1.App
             AddFilesAsync(files);
         }
 
-        /// <summary>批量读标签入列表（拖放/文件/文件夹共用）；标签读取在线程池，防卡 UI。</summary>
-        void AddFilesAsync(IList<string> files, Action afterDone = null)
+        /// <summary>批量添加：files 可混文件与文件夹（目录在后台递归展开，大文件夹不卡 UI）。
+        /// 标签读取在线程池；入库前做去重校验（AddGuard）：与曲库已有/批内重复的路径直接跳过。</summary>
+        void AddFilesAsync(IList<string> inputs, Action afterDone = null)
         {
-            if (files == null || files.Count == 0) return;
+            if (inputs == null || inputs.Count == 0) return;
             BtnAdd.IsEnabled = false;
             BtnAdd.Content = "Reading…";
+            var existing = new List<string>(_pathKeys);   /* 路径键快照供后台过滤（UI 线程外不碰 _pathKeys） */
             System.Threading.Tasks.Task.Run(() =>
             {
+                var files = new List<string>();
+                foreach (var p in inputs)
+                {
+                    try
+                    {
+                        if (Directory.Exists(p)) ScanAudioDir(p, files);
+                        else if (File.Exists(p)) files.Add(p);
+                    }
+                    catch { }
+                }
+                int skipExist, skipDup;
+                var fresh = AddGuard.FilterNew(files, existing, out skipExist, out skipDup);
                 var pairs = new List<KeyValuePair<TrackMeta, string>>();
-                foreach (var f in files)
+                foreach (var f in fresh)
                 {
                     try
                     {
@@ -744,18 +812,42 @@ namespace Pa1.App
                     }
                     catch { }
                 }
+                int notAudio = fresh.Count - pairs.Count;
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
+                    int added = 0, skipped = skipExist + skipDup;
+                    var addedPairs = new List<KeyValuePair<TrackMeta, string>>();
                     foreach (var kv in pairs)
-                    {
-                        _paths[kv.Key] = kv.Value;
-                        _rows.Add(new TrackRow { Meta = kv.Key, Seq = _seqCounter++, Spec = FormatProbe.SpecLabel(kv.Key.Spec) });
-                        _pl.Tracks.Add(kv.Key);
-                    }
+                        if (AddTrackIfNew(kv.Key, kv.Value)) { added++; addedPairs.Add(kv); }
+                        else skipped++;                      /* 并发兜底：本批内路径键已登记 */
                     TrackList.ItemsSource = _rows;
-                    PlStats.Text = _rows.Count + " TRACKS";
+                    if (files.Count == 0)
+                        PlStats.Text = "NO AUDIO IN FOLDER";
+                    else if (_restorePending)
+                        PlStats.Text = _rows.Count + " TRACKS";   /* 曲库恢复：静默恢复，不刷添加统计 */
+                    else
+                    {
+                        string msg = _rows.Count + " TRACKS";
+                        if (added > 0) msg += " · +" + added + " ADDED";
+                        if (skipped > 0) msg += " · " + skipped + " SKIPPED";
+                        if (notAudio > 0) msg += " · " + notAudio + " NOT AUDIO";
+                        PlStats.Text = msg;
+                    }
+                    try
+                    {
+                        File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                            DateTime.Now + " [add] inputs=" + inputs.Count + " files=" + files.Count
+                            + " fresh=" + fresh.Count + " +" + added + " added, " + skipped + " skipped ("
+                            + skipExist + " exist + " + skipDup + " batch), " + notAudio + " not-audio, total=" + _rows.Count
+                            + Environment.NewLine);
+                    }
+                    catch { }
                     _pl.InvalidateShuffle();
                     ApplySort(_sortMode);   /* 新增后按当前档位重排（导入序档按 Seq 稳定） */
+                    /* 响度缓存预热：无 RG 标签的曲目排队后台扫描（串行，播前大概率已就绪） */
+                    foreach (var kv in addedPairs)
+                        if (float.IsNaN(kv.Key.RgGainDb))
+                            LoudnessScanner.Request(kv.Value);
                     _restorePending = false;
                     SaveTracks();
                     BtnAdd.IsEnabled = true;
@@ -842,6 +934,7 @@ namespace Pa1.App
             if (k == Key.T) { BtnTheme_Click(null, null); return true; }
             if (k == Key.R) { BtnRange_Click(null, null); return true; }
             if (k == Key.D) { BtnDsdOut_Click(null, null); return true; }
+            if (k == Key.N) { BtnNorm_Click(null, null); return true; }
             if (k == Key.Space) { if (!_loading) { _eng.Toggle(); SyncUI(); } return true; }
             if (k == Key.Left) { if (!_loading) _eng.Position = Math.Max(0, _eng.Position - 5); return true; }
             if (k == Key.Right) { if (!_loading) _eng.Position = Math.Min(_eng.Length, _eng.Position + 5); return true; }

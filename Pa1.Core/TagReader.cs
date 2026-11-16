@@ -12,6 +12,10 @@ namespace Pa1.Core
         public string Album = "";
         public int TrackNo;
         public TrackSpec Spec;
+        /// <summary>ReplayGain 轨道增益（dB，参考 -18 LUFS；标签直出/换算）。NaN = 无标签。</summary>
+        public float RgGainDb = float.NaN;
+        /// <summary>采样峰值（dBFS）。NaN = 未知。</summary>
+        public float RgPeakDb = float.NaN;
     }
 
     public static class TagReader
@@ -166,6 +170,16 @@ namespace Pa1.Core
                                 int t;
                                 if (int.TryParse(val.Split('/')[0], out t)) m.TrackNo = t;
                             }
+                            else if (key == "REPLAYGAIN_TRACK_GAIN" && float.IsNaN(m.RgGainDb))
+                                m.RgGainDb = ParseDb(val);
+                            else if (key == "R128_TRACK_GAIN" && float.IsNaN(m.RgGainDb))
+                            {
+                                /* R128 增益参考 -23 LUFS → 换算到 -18 LUFS（ReplayGain 惯例）：+5dB */
+                                float g = ParseDb(val);
+                                if (!float.IsNaN(g)) m.RgGainDb = g + 5f;
+                            }
+                            else if (key == "REPLAYGAIN_TRACK_PEAK" && float.IsNaN(m.RgPeakDb))
+                                m.RgPeakDb = ParsePeak(val);
                         }
                         return;
                     }
@@ -234,6 +248,53 @@ namespace Pa1.Core
             catch { return ""; }
         }
 
+        /// <summary>解析 "-6.54 dB" / "-6.54" → float；非法返回 NaN。</summary>
+        public static float ParseDb(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return float.NaN;
+            s = s.Trim().Replace("dB", "").Replace("db", "").Trim();
+            float v;
+            return float.TryParse(s, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out v) ? v : float.NaN;
+        }
+
+        /// <summary>峰值标签：ReplayGain 规范为线性（"0.988"）；非正值或 >2 视为误写的 dBFS 直取。</summary>
+        public static float ParsePeak(string s)
+        {
+            float v = ParseDb(s);
+            if (float.IsNaN(v)) return float.NaN;
+            return (v > 0f && v <= 2f) ? (float)(20.0 * Math.Log10(v)) : v;
+        }
+
+        /// <summary>拆 ID3 TXXX 帧体：[enc][描述\0][值]（UTF-16 系 null 为双字节）。</summary>
+        static bool TryParseTxxx(byte[] body, out string desc, out string val)
+        {
+            desc = ""; val = "";
+            if (body == null || body.Length < 4) return false;
+            byte enc = body[0];
+            int sep = -1;
+            if (enc == 1 || enc == 2)
+            {
+                for (int i = 1; i + 1 < body.Length; i += 2)
+                    if (body[i] == 0 && body[i + 1] == 0) { sep = i; break; }
+            }
+            else
+            {
+                for (int i = 1; i < body.Length; i++)
+                    if (body[i] == 0) { sep = i; break; }
+            }
+            if (sep <= 1 || sep >= body.Length - 1) return false;
+            int sepEnd = (enc == 1 || enc == 2) ? sep + 2 : sep + 1;
+            var dArr = new byte[sep + 1];
+            Array.Copy(body, 0, dArr, 0, sep + 1);
+            var vArr = new byte[body.Length - sepEnd + 1];
+            vArr[0] = enc;
+            Array.Copy(body, sepEnd, vArr, 1, body.Length - sepEnd);
+            desc = DecodeText(dArr);
+            val = DecodeText(vArr);
+            return desc.Length > 0 && val.Length > 0;
+        }
+
         public static void ParseId3v2(byte[] head, TrackMeta outMeta)
         {
             if (head == null || head.Length < 10) return;
@@ -261,6 +322,18 @@ namespace Pa1.Core
                 {
                     int t;
                     if (int.TryParse(DecodeText(body), out t)) outMeta.TrackNo = t;
+                }
+                else if (id == "TXXX")   /* 用户自定义文本：ReplayGain 走这里 */
+                {
+                    string desc, val;
+                    if (TryParseTxxx(body, out desc, out val))
+                    {
+                        string dl = desc.ToLowerInvariant();
+                        if (dl == "replaygain_track_gain" && float.IsNaN(outMeta.RgGainDb))
+                            outMeta.RgGainDb = ParseDb(val);
+                        else if (dl == "replaygain_track_peak" && float.IsNaN(outMeta.RgPeakDb))
+                            outMeta.RgPeakDb = ParsePeak(val);
+                    }
                 }
                 off += 10 + fs;
             }

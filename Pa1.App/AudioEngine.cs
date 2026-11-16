@@ -121,6 +121,12 @@ namespace Pa1.App
         ISampleProvider _tap;
         GainProvider _gain;
         float _volume = 0.8f;
+        /* ── 响度归一化状态 ── */
+        public bool NormOn;
+        public double NormTarget = -18.0;      /* LUFS 目标（ReplayGain 89dB 参考） */
+        public float NormGainDb;               /* 当前曲目实际应用增益（dB，峰值钳制后） */
+        public string NormSource = "-";        /* TAG / SCAN / CACHE / SCAN… / N/A / - */
+        public volatile float _normGain = 1f;  /* 线性增益（音频线程读取） */
         bool _paused;               /* 暂停=停 client：恢复时重建输出链续播 */
         volatile bool _stopByUser = true;   /* 停止由 Pause/Stop/重建引发：PlaybackStopped 不算自然播完 */
 
@@ -378,6 +384,7 @@ namespace Pa1.App
                     FftRate = Plan.Rate;
                 }
 
+                ResolveNormGain(path, meta, _posDop != null);
                 try
                 {
                     File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
@@ -600,7 +607,7 @@ namespace Pa1.App
             {
                 /* 音量做软件增益：NAudio WasapiOut.Volume 写的是系统端点音量（AudioEndpointVolume），
                    ① 会劫持 Windows 系统音量；② 部分 USB DAC 返回 E_NOTIMPL → 「尚未实现」异常 */
-                _gain = new GainProvider(_tap) { Gain = _volume };
+                _gain = new GainProvider(_tap) { Gain = _volume * _normGain };
                 return share == AudioClientShareMode.Exclusive
                     ? (IWaveProvider)new SampleToPcm24Provider(_gain)
                     : new SampleToWaveProvider(_gain);
@@ -658,7 +665,69 @@ namespace Pa1.App
         public void SetVolume(float v)
         {
             _volume = Math.Max(0, Math.Min(1, v));
-            if (_gain != null) _gain.Gain = _volume;    /* 软件增益，不动系统音量 */
+            if (_gain != null) _gain.Gain = _volume * _normGain;    /* 软件增益，不动系统音量 */
+        }
+
+        /// <summary>开关响度归一化（即时生效，不重载曲目；增益平滑 5ms 过渡）。</summary>
+        public void SetNorm(bool on)
+        {
+            if (NormOn == on) { StateChanged?.Invoke(); return; }
+            NormOn = on;
+            string path = FilePath;
+            if (!string.IsNullOrEmpty(path) && Meta != null)
+                ResolveNormGain(path, Meta, _posDop != null);
+            if (_gain != null) _gain.Gain = _volume * _normGain;
+            StateChanged?.Invoke();
+        }
+
+        readonly object _normLk = new object();
+
+        /// <summary>解析并应用当前曲目的归一化增益：RG 标签 → 缓存 → 后台扫描。
+        /// DoP/Native 位流不加增益（bit-perfect，音量用设备旋钮）。</summary>
+        void ResolveNormGain(string path, TrackMeta meta, bool bitstream)
+        {
+            if (!NormOn || bitstream)
+            {
+                NormGainDb = 0;
+                NormSource = NormOn ? "N/A" : "-";
+                _normGain = 1f;
+                return;
+            }
+            if (meta != null && !float.IsNaN(meta.RgGainDb))
+            {
+                /* 标签增益参考 -18 LUFS → 反推响度后按目标/峰值统一规划 */
+                NormGainDb = (float)LoudnessMeter.NormalizeGainDb(-18.0 - meta.RgGainDb, meta.RgPeakDb, NormTarget);
+                NormSource = "TAG";
+                _normGain = (float)Math.Pow(10, NormGainDb / 20);
+                return;
+            }
+            float lufs, peak;
+            if (LoudnessCache.TryGet(path, out lufs, out peak))
+            {
+                NormGainDb = (float)LoudnessMeter.NormalizeGainDb(lufs, peak, NormTarget);
+                NormSource = "CACHE";
+                _normGain = (float)Math.Pow(10, NormGainDb / 20);
+                return;
+            }
+            /* 无数据：先直通，后台扫描完成后热更新（增益 5ms 平滑过渡） */
+            NormGainDb = 0;
+            NormSource = "SCAN…";
+            _normGain = 1f;
+            LoudnessScanner.Request(path, () =>
+            {
+                float l, pk;
+                if (!LoudnessCache.TryGet(path, out l, out pk)) return;
+                lock (_normLk)
+                {
+                    if (!NormOn || _posDop != null) return;
+                    if (!string.Equals(FilePath, path, StringComparison.OrdinalIgnoreCase)) return;
+                    NormGainDb = (float)LoudnessMeter.NormalizeGainDb(l, pk, NormTarget);
+                    NormSource = "SCAN";
+                    _normGain = (float)Math.Pow(10, NormGainDb / 20);
+                    if (_gain != null) _gain.Gain = _volume * _normGain;
+                }
+                StateChanged?.Invoke();
+            }, true);   /* priority：当前播放曲目插队，不排在批量预热后面 */
         }
 
         public void SetExclusive(bool on)
@@ -874,7 +943,7 @@ namespace Pa1.App
 
                 float envStep = 1f / (0.02f * _fmt.SampleRate);    /* 20ms 淡入 */
                 float gainStep = 1f / (0.005f * _fmt.SampleRate);  /* 5ms 音量平滑 */
-                float targetG = _eng != null ? _eng._volume : 1f;
+                float targetG = _eng != null ? _eng._volume * _eng._normGain : 1f;
 
                 int o = offset;
                 FloatBits fb = new FloatBits();
