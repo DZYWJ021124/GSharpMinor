@@ -183,7 +183,9 @@
       </Style.Triggers>
     </Style>
 
-    <!-- ══ 滚动条：细轨道 + 磷光 Thumb，纵向/横向共用视觉语言 ══ -->
+    <!-- ══ 滚动条：细轨道 + CLIP 琥珀 Thumb，纵向/横向共用视觉语言 ══
+         Thumb 不设 MinHeight/MinWidth：固定下限会在低轨道（最小窗口高度）下
+         撑破槽位，被 WPF 布局裁剪成“上圆下平”的形变；让 thumb 跟随轨道比例。 -->
     <Style x:Key="ScrollRepeat" TargetType="RepeatButton">
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="IsTabStop" Value="False"/>
@@ -199,16 +201,15 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Thumb">
+            <!-- CLIP 指示灯色（AmberBrush = WAmber，随主题换肤） -->
             <Border x:Name="bd" Margin="2" CornerRadius="3"
-                    Background="{DynamicResource MutedBrush}" Opacity="0.42"/>
+                    Background="{DynamicResource AmberBrush}" Opacity="0.6"/>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PhosDimBrush}"/>
-                <Setter TargetName="bd" Property="Opacity" Value="0.9"/>
+                <Setter TargetName="bd" Property="Opacity" Value="0.95"/>
               </Trigger>
               <Trigger Property="IsDragging" Value="True">
-                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PhosBrush}"/>
-                <Setter TargetName="bd" Property="Opacity" Value="0.9"/>
+                <Setter TargetName="bd" Property="Opacity" Value="1"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -230,7 +231,8 @@
                   <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Style="{StaticResource ScrollRepeat}"/>
                 </Track.IncreaseRepeatButton>
                 <Track.Thumb>
-                  <Thumb MinHeight="26" Style="{StaticResource ScrollThumb}"/>
+                  <!-- 不设 MinHeight：低轨道下固定下限会撑破槽位被布局裁剪（下限窗口高度时的形变） -->
+                  <Thumb Style="{StaticResource ScrollThumb}"/>
                 </Track.Thumb>
               </Track>
             </Grid>
@@ -253,7 +255,8 @@
                       <RepeatButton Command="{x:Static ScrollBar.PageRightCommand}" Style="{StaticResource ScrollRepeat}"/>
                     </Track.IncreaseRepeatButton>
                     <Track.Thumb>
-                      <Thumb MinWidth="26" Style="{StaticResource ScrollThumb}"/>
+                      <!-- 不设 MinWidth：与纵向同理，避免窄轨道下布局裁剪形变 -->
+                      <Thumb Style="{StaticResource ScrollThumb}"/>
                     </Track.Thumb>
                   </Track>
                 </Grid>
