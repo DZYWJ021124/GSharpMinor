@@ -35,8 +35,8 @@ namespace Pa1.App
             WReadoutBg = C(0x04, 0x06, 0x03), WShadow = C(0x00, 0x00, 0x00),
             /* 窗口控制符：Dark 底上比 WMuted 更浅（更易辨认） */
             WWnd = C(0xb5, 0xb2, 0xa3),
-            /* 第一排背景带：比 WBg 更暗 */
-            WTopBar = C(0x04, 0x05, 0x03),
+            /* 第一排背景带：比 WBg 更浅 */
+            WTopBar = C(0x1a, 0x1d, 0x14),
         };
 
         public static readonly ThemePal Light = new ThemePal

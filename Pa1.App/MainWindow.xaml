@@ -407,18 +407,18 @@
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <!-- ══ 顶部：第一排窗口控制（靠上），第二排品牌/功能（在下部） ══ -->
-    <Grid x:Name="TitleBar" Grid.Row="0" Margin="26,12,20,0"
+    <!-- ══ 顶部：第一排全出血背景带（贴窗口上/左/右缘，元素上下居中、靠右），第二排品牌/功能 ══ -->
+    <Grid x:Name="TitleBar" Grid.Row="0"
           MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
 
-      <!-- 第一排：主题字样 + 窗口控制（深色背景带，元素上下居中、整组居中） -->
-      <local:SquircleBorder Grid.Row="0" Background="{DynamicResource TopBarBrush}" CornerRadius="6"
-                            Padding="16,3,10,3">
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+      <!-- 第一排：主题字样 + 窗口控制（背景带贴窗口上/左/右缘，上下居中、靠右） -->
+      <local:SquircleBorder Grid.Row="0" Background="{DynamicResource TopBarBrush}" CornerRadius="10"
+                            TopOnly="True" Padding="0">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
           <Button x:Name="BtnTheme" Content="Light" Click="BtnTheme_Click" Style="{StaticResource ThemeTag}"
                   Margin="0,0,16,0" ToolTip="切换主题（T 键）"/>
           <Button x:Name="BtnMinimize" Content="–" Click="BtnMinimize_Click" Style="{StaticResource WinBtn}"
@@ -430,8 +430,8 @@
         </StackPanel>
       </local:SquircleBorder>
 
-      <!-- 第二排：品牌 + 信号灯 / 页签 / 主题（相对位置在下部） -->
-      <Grid Grid.Row="1">
+      <!-- 第二排：品牌 + 信号灯 / 页签（保持原内缩） -->
+      <Grid Grid.Row="1" Margin="26,12,20,0">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
