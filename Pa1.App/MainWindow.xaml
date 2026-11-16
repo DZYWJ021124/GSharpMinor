@@ -4,9 +4,15 @@
         xmlns:local="clr-namespace:Pa1.App"
         Title="PHOSPHOR PA-1 · Spectrum Analyzer" Height="820" Width="1180"
         MinHeight="620" MinWidth="900"
-        Background="{DynamicResource BgBrush}" WindowStartupLocation="CenterScreen"
+        Background="Transparent" AllowsTransparency="True" WindowStartupLocation="CenterScreen"
+        WindowStyle="None" ResizeMode="CanResize" StateChanged="Win_StateChanged"
         FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
         AllowDrop="True" DragOver="Win_DragOver" Drop="Win_Drop">
+  <!-- 自绘窗口外观：无系统标题栏/边框；WindowChrome 保留原生缩放、贴边与最大化工作区行为。 -->
+  <WindowChrome.WindowChrome>
+    <WindowChrome CaptionHeight="0" GlassFrameThickness="0" ResizeBorderThickness="6"
+                  CornerRadius="0" UseAeroCaptionButtons="False"/>
+  </WindowChrome.WindowChrome>
   <Window.Resources>
     <!-- ══ 主题色板（UpdateThemeBrushes 换肤时原地改 Color，全部引用自动生效） ══ -->
     <SolidColorBrush x:Key="BgBrush" Color="#0b0d08"/>
@@ -36,10 +42,10 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+            <local:SquircleBorder x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
                     BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
+            </local:SquircleBorder>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Foreground" Value="{DynamicResource PhosBrush}"/>
@@ -63,10 +69,10 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+            <local:SquircleBorder x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
+            </local:SquircleBorder>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
@@ -100,10 +106,10 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+            <local:SquircleBorder x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
+            </local:SquircleBorder>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="bd" Property="Background" Value="#33ffb340"/>
@@ -116,6 +122,125 @@
           </ControlTemplate>
         </Setter.Value>
       </Setter>
+    </Style>
+
+    <!-- ══ 自绘窗口按钮 ══ -->
+    <Style x:Key="WinBtn" TargetType="Button">
+      <Setter Property="Width" Value="38"/>
+      <Setter Property="Height" Value="34"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="FontFamily" Value="Consolas"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <local:SquircleBorder x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="3">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </local:SquircleBorder>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource PhosBrush}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource SelBrush}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="WinCloseBtn" TargetType="Button" BasedOn="{StaticResource WinBtn}">
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Foreground" Value="{DynamicResource AmberBrush}"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- ══ 滚动条：细轨道 + 磷光 Thumb，纵向/横向共用视觉语言 ══ -->
+    <Style x:Key="ScrollRepeat" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="IsTabStop" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RepeatButton">
+            <Border Background="Transparent"/>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="ScrollThumb" TargetType="Thumb">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb">
+            <Border x:Name="bd" Margin="2" CornerRadius="3"
+                    Background="{DynamicResource MutedBrush}" Opacity="0.42"/>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PhosDimBrush}"/>
+                <Setter TargetName="bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsDragging" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PhosBrush}"/>
+                <Setter TargetName="bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Width" Value="11"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Grid Background="{TemplateBinding Background}">
+              <Track x:Name="PART_Track" IsDirectionReversed="True">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="ScrollBar.DecreaseVerticalCommand" Style="{StaticResource ScrollRepeat}"/>
+                </Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="ScrollBar.IncreaseVerticalCommand" Style="{StaticResource ScrollRepeat}"/>
+                </Track.IncreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb MinHeight="26" Style="{StaticResource ScrollThumb}"/>
+                </Track.Thumb>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="Orientation" Value="Horizontal">
+          <Setter Property="Width" Value="Auto"/>
+          <Setter Property="Height" Value="11"/>
+          <Setter Property="Template">
+            <Setter.Value>
+              <ControlTemplate TargetType="ScrollBar">
+                <Grid Background="{TemplateBinding Background}">
+                  <Track x:Name="PART_Track" IsDirectionReversed="False">
+                    <Track.DecreaseRepeatButton>
+                      <RepeatButton Command="ScrollBar.DecreaseHorizontalCommand" Style="{StaticResource ScrollRepeat}"/>
+                    </Track.DecreaseRepeatButton>
+                    <Track.IncreaseRepeatButton>
+                      <RepeatButton Command="ScrollBar.IncreaseHorizontalCommand" Style="{StaticResource ScrollRepeat}"/>
+                    </Track.IncreaseRepeatButton>
+                    <Track.Thumb>
+                      <Thumb MinWidth="26" Style="{StaticResource ScrollThumb}"/>
+                    </Track.Thumb>
+                  </Track>
+                </Grid>
+              </ControlTemplate>
+            </Setter.Value>
+          </Setter>
+        </Trigger>
+      </Style.Triggers>
     </Style>
 
     <!-- ══ 音量滑条（磷光主题） ══ -->
@@ -251,7 +376,10 @@
     </Style>
   </Window.Resources>
 
-  <Grid x:Name="RootBg" Background="{DynamicResource BgBrush}">
+  <!-- 窗口壳：透明 HWND + 超椭圆背景容器（连续曲率圆角；最大化时 Win_StateChanged 置 0）。
+       WinBg 作为根容器包裹全部内容：背景铺满整窗，内容在内层 Grid 三行布局。 -->
+  <local:SquircleBorder x:Name="WinBg" CornerRadius="10" Background="{DynamicResource BgBrush}">
+  <Grid x:Name="RootBg">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
@@ -259,7 +387,8 @@
     </Grid.RowDefinitions>
 
     <!-- ══ 顶部品牌 / 页签 ══ -->
-    <Grid Grid.Row="0" Margin="26,18,26,0">
+    <Grid x:Name="TitleBar" Grid.Row="0" Margin="26,12,20,0"
+          MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*"/>
         <ColumnDefinition Width="Auto"/>
@@ -297,6 +426,13 @@
         <Button x:Name="TabLibrary" Content="LIBRARY" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
         <Button x:Name="BtnTheme" Content="Theme · Light" Click="BtnTheme_Click" Style="{StaticResource TxtBtn}"
                 Width="112" Margin="14,0,0,0"/>
+        <Rectangle Width="1" Height="18" Fill="{DynamicResource LineBrush}" Margin="14,0,8,0"/>
+        <Button x:Name="BtnMinimize" Content="–" Click="BtnMinimize_Click" Style="{StaticResource WinBtn}"
+                ToolTip="最小化"/>
+        <Button x:Name="BtnMaximize" Content="□" Click="BtnMaximize_Click" Style="{StaticResource WinBtn}"
+                ToolTip="最大化"/>
+        <Button x:Name="BtnClose" Content="×" Click="BtnClose_Click" Style="{StaticResource WinCloseBtn}"
+                FontSize="18" ToolTip="关闭"/>
       </StackPanel>
     </Grid>
     <Border Grid.Row="0" Height="1" VerticalAlignment="Bottom" Margin="26,10,26,0"
@@ -305,18 +441,34 @@
     <!-- ══ 页一：分析仪 ══ -->
     <Grid x:Name="PageA" Grid.Row="1" Margin="26,14,26,0">
       <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
 
+      <!-- 顶部导入操作区：独立成行，窗口变窄时不再与走带按钮互相挤压。 -->
+      <DockPanel Grid.Row="0" Margin="0,0,0,12" LastChildFill="False">
+        <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+          <TextBlock Text="SPECTRUM / INPUT" FontSize="9.5" FontWeight="Bold"
+                     Foreground="{DynamicResource PhosDimBrush}"/>
+          <TextBlock Text="DRAG AUDIO ANYWHERE TO IMPORT" FontSize="8.5"
+                     Foreground="{DynamicResource MutedBrush}" Margin="0,4,0,0"/>
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button x:Name="BtnAdd" Content="+ Add Files" Click="BtnAdd_Click" Style="{StaticResource TxtBtn}"/>
+          <Button x:Name="BtnAddFolder" Content="+ Add Folder" Click="BtnAddFolder_Click"
+                  Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
+        </StackPanel>
+      </DockPanel>
+
       <!-- 频谱屏（细边框；不再挂 DropShadowEffect——大画布每帧离屏模糊会拖垮 Analyser 帧率并饿死音频线程） -->
-      <Border Grid.Row="0" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="5"
+      <local:SquircleBorder Grid.Row="1" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="5"
               Background="{DynamicResource PanelBrush}" Padding="3">
         <local:SpectrumControl x:Name="SpecView" MinHeight="200"/>
-      </Border>
+      </local:SquircleBorder>
 
       <!-- 传输台卡片 -->
-      <Border Grid.Row="1" Margin="0,16,0,10" Background="{DynamicResource PanelBrush}"
+      <local:SquircleBorder Grid.Row="2" Margin="0,16,0,10" Background="{DynamicResource PanelBrush}"
               BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="5" Padding="22,18,22,16">
         <Grid>
           <Grid.RowDefinitions>
@@ -376,8 +528,6 @@
                     Margin="10,0,0,0" ToolTip="频谱量程下限（R 循环切换）"/>
             <Button x:Name="BtnNorm" Content="NORM · OFF" Click="BtnNorm_Click" Style="{StaticResource TxtBtn}"
                     Margin="10,0,0,0" ToolTip="响度归一化：目标 -18 LUFS（ReplayGain 标签优先，缺失自动扫描；N 键开关）"/>
-            <Button x:Name="BtnAdd" Content="+ Add Files" Click="BtnAdd_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
-            <Button x:Name="BtnAddFolder" Content="+ Add Folder" Click="BtnAddFolder_Click" Style="{StaticResource TxtBtn}" Margin="10,0,0,0"/>
           </StackPanel>
 
           <!-- 电平 / 音量 / 输出 -->
@@ -422,7 +572,7 @@
             </StackPanel>
           </Grid>
         </Grid>
-      </Border>
+      </local:SquircleBorder>
     </Grid>
 
     <!-- ══ 页二：曲目管理 ══ -->
@@ -433,7 +583,7 @@
       </Grid.RowDefinitions>
 
       <!-- NOW PLAYING 卡片 -->
-      <Border Grid.Row="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
+      <local:SquircleBorder Grid.Row="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
               BorderThickness="1" CornerRadius="5" Padding="20,16" Margin="0,0,0,16">
         <DockPanel>
           <StackPanel DockPanel.Dock="Left">
@@ -448,7 +598,7 @@
             <Button Content="▶|" Click="BtnNext_Click" Style="{StaticResource TxtBtn}"/>
           </StackPanel>
         </DockPanel>
-      </Border>
+      </local:SquircleBorder>
 
       <Grid Grid.Row="1">
         <Grid.RowDefinitions>
@@ -470,12 +620,13 @@
         </DockPanel>
 
         <!-- 曲目表（卡片化） -->
-        <Border Grid.Row="1" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
+        <local:SquircleBorder Grid.Row="1" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
                 BorderThickness="1" CornerRadius="5">
           <DataGrid x:Name="TrackList" AutoGenerateColumns="False" CanUserAddRows="False"
                     IsReadOnly="True" SelectionUnit="FullRow" CanUserSortColumns="False"
                     MouseDoubleClick="TrackList_MouseDoubleClick" HeadersVisibility="Column"
                     Background="Transparent" RowBackground="Transparent" AlternatingRowBackground="Transparent"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                     GridLinesVisibility="None"
                     FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="11.5" RowHeight="36" BorderThickness="0">
             <DataGrid.RowStyle>
@@ -552,7 +703,7 @@
                                   ElementStyle="{StaticResource CellTxt}"/>
             </DataGrid.Columns>
           </DataGrid>
-        </Border>
+        </local:SquircleBorder>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
           <Button Content="+ Add Files" Click="BtnAdd_Click" Style="{StaticResource TxtBtn}"/>
@@ -568,4 +719,5 @@
                  FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}" Opacity="0.75"/>
     </DockPanel>
   </Grid>
+  </local:SquircleBorder>
 </Window>

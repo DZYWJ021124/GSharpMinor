@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
@@ -57,6 +58,23 @@ namespace Pa1.App
             Settings.Load();
 
             InitializeComponent();
+
+            /* 透明无边框窗口的最大化需要约束到工作区（否则盖住任务栏）；
+               并禁用 Win11 DWM 自动圆角——否则组合器的圆弧裁剪会盖掉 squircle 连续曲率角 */
+            SourceInitialized += (ss, ee) =>
+            {
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                var src = System.Windows.Interop.HwndSource.FromHwnd(hwnd);
+                if (src != null) src.AddHook(MaxSizeHook);
+                int pref = 1;   /* DWMWCP_DONOTROUND */
+                int hr = DwmSetWindowAttribute(hwnd, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, ref pref, 4);
+                try
+                {
+                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                        DateTime.Now + " [dwm] corner-pref hr=0x" + hr.ToString("X8") + Environment.NewLine);
+                }
+                catch { }
+            };
 
             /* 排序下拉用字符串 Items（与 DevCombo 设备列表同路） */
             SortCombo.ItemsSource = new[]
@@ -182,7 +200,6 @@ namespace Pa1.App
                         else if (File.Exists(p)) batch.Add(p);
                     }
                     catch { }
-                    int skipped = 0;
                     foreach (var f in batch)
                     {
                         try
@@ -672,6 +689,94 @@ namespace Pa1.App
             _lastDir = dirs[dirs.Count - 1];   /* 记住最后选中的目录作下次起始位 */
             BtnAdd.Content = "Scanning…";
             AddFilesAsync(dirs);               /* 目录在后台线程递归展开，大文件夹不卡 UI */
+        }
+
+        /* ════════ 自绘标题栏：窗口控制 + 拖动/双击最大化 ════════ */
+
+        /* WM_GETMINMAXINFO：透明无边框窗口默认最大化到整个屏幕（盖住任务栏），
+           手工把最大化矩形钳到显示器工作区。 */
+        IntPtr MaxSizeHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WM_GETMINMAXINFO = 0x0024;
+            if (msg == WM_GETMINMAXINFO)
+            {
+                var mmi = (MINMAXINFO)System.Runtime.InteropServices.Marshal.PtrToStructure(
+                    lParam, typeof(MINMAXINFO));
+                IntPtr mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+                if (mon != IntPtr.Zero)
+                {
+                    var mi = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MONITORINFO)) };
+                    if (GetMonitorInfo(mon, ref mi))
+                    {
+                        mmi.ptMaxPosition.x = mi.rcWork.left - mi.rcMonitor.left;
+                        mmi.ptMaxPosition.y = mi.rcWork.top - mi.rcMonitor.top;
+                        mmi.ptMaxSize.x = mi.rcWork.right - mi.rcWork.left;
+                        mmi.ptMaxSize.y = mi.rcWork.bottom - mi.rcWork.top;
+                        System.Runtime.InteropServices.Marshal.StructureToPtr(mmi, lParam, true);
+                        handled = true;
+                    }
+                }
+            }
+            return IntPtr.Zero;
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        struct POINTAPI { public int x, y; }
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        struct MINMAXINFO
+        {
+            public POINTAPI ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize;
+        }
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        struct RECT { public int left, top, right, bottom; }
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        struct MONITORINFO
+        {
+            public int cbSize;
+            public RECT rcMonitor, rcWork;
+            public int dwFlags;
+        }
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern bool GetMonitorInfo(IntPtr hmon, ref MONITORINFO mi);
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+        static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int val, int size);
+        const uint MONITOR_DEFAULTTONEAREST = 2;
+
+        void BtnMinimize_Click(object s, RoutedEventArgs e) { WindowState = WindowState.Minimized; }
+        void BtnClose_Click(object s, RoutedEventArgs e) { Close(); }
+        void BtnMaximize_Click(object s, RoutedEventArgs e) { ToggleMaximize(); }
+
+        void ToggleMaximize()
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        }
+
+        void Win_StateChanged(object s, EventArgs e)
+        {
+            if (BtnMaximize == null) return;
+            bool max = WindowState == WindowState.Maximized;
+            BtnMaximize.Content = max ? "❐" : "□";
+            BtnMaximize.ToolTip = max ? "还原" : "最大化";
+            /* 最大化填满工作区 → 圆角归零（保留会露出屏幕外的角） */
+            if (WinBg != null) WinBg.CornerRadius = new CornerRadius(max ? 0 : 10);
+        }
+
+        void TitleBar_MouseLeftButtonDown(object s, MouseButtonEventArgs e)
+        {
+            if (e.ButtonState != MouseButtonState.Pressed) return;
+            /* 页签/主题/窗口按钮自身处理点击，不能被标题栏拖动截获 */
+            var d = e.OriginalSource as DependencyObject;
+            while (d != null && d != TitleBar)
+            {
+                if (d is ButtonBase) return;
+                d = VisualTreeHelper.GetParent(d) ?? LogicalTreeHelper.GetParent(d);
+            }
+            e.Handled = true;
+            if (e.ClickCount == 2) { ToggleMaximize(); return; }
+            if (WindowState == WindowState.Maximized) return;
+            try { DragMove(); } catch (InvalidOperationException) { }
         }
 
         /* 拖放：文件与文件夹皆可（文件夹递归扫音频） */

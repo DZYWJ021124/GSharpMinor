@@ -93,21 +93,13 @@ namespace Pa1.App
             c.Clear(SKColors.Transparent);
 
             double x0 = PadLeft, areaW = W - (PadLeft + PadRight);
-            /* 槽位像素量化：整数步进 → 柱宽/缝隙双双严格相等。
-               分数步进 + 位置取整只能统一柱宽，缝隙仍会在 G/G+1 间跳变（4K 实测
-               155×2px 与 4×4px 混排 = "缝隙不等宽"）；整数像素下等宽缝隙与分数步进
-               不可兼得（总宽=160W+159G 必为整数）。条带 = 160×整数步进，居中收窄
-               <160px（≤8% 轴宽）；网格/刻度/斜纹/峰值同用量化条带，频率对齐一致。 */
-            int pitch = Math.Max(2, (int)(areaW / BandN));
-            double stripW = pitch * (double)BandN;
-            x0 = Math.Floor(x0 + (areaW - stripW) / 2 + 0.5);
-            areaW = stripW;
-            /* 柱间留白 22%（≥1px）；柱宽 = 步进 - 留白，整数像素下全等 */
-            int gapPx = Math.Max(1, (int)Math.Floor(pitch * 0.22 + 0.5));
-            int bwPx = pitch - gapPx;
-            if (bwPx < 1) { bwPx = 1; gapPx = pitch - 1; }
-            int barInset = gapPx / 2;
-            double step = pitch;
+            /* 连续自适应几何：160 根柱始终铺满可用轴宽，宽度随窗口逐像素变化。
+               不再量化整数槽位（会在宽度阈值处阶梯跳变）；柱体开启 AA，用亚像素
+               覆盖率平滑分数宽度，同时保持每根柱的几何宽度与间隙严格一致。 */
+            double step = areaW / BandN;
+            double gap = Math.Max(0.65, step * 0.22);
+            double bw = Math.Max(0.5, step - gap);
+            double barInset = (step - bw) / 2;
 
             /* 网格：dB 横线 + 对数频率纵栅格（主栅格 100/1K/10K 重线，2~9× 次栅格淡线） */
             foreach (var g in FreqGrid)
@@ -167,12 +159,12 @@ namespace Pa1.App
             {
                 double y = DbToY(Disp[i], H);
                 float h = (float)Math.Max(2, baseY - y);
-                float bx = (float)Math.Floor(x0 + step * i + barInset + 0.5);
+                float bx = (float)(x0 + step * i + barInset);
                 /* 画布矩阵缩放到柱体（单位渐变 (0,0)-(0,1) 随 CTM 映射）——
                    不用 WithLocalMatrix：每帧 160 个临时 SKShader 泄漏曾把帧率拖衰 */
                 c.Save();
                 c.Translate(bx, (float)y);
-                c.Scale(bwPx, h);
+                c.Scale((float)bw, h);
                 c.DrawRect(0, 0, 1, 1, _pFill);
                 c.Restore();
             }
@@ -189,7 +181,7 @@ namespace Pa1.App
                 {
                     float py = (float)DbToY(Peak[i], H);
                     if (py < baseY - 2)
-                        c.DrawRect((float)Math.Floor(x0 + step * i + barInset + 0.5), py, bwPx, 1.5f, _pPeakDot);
+                        c.DrawRect((float)(x0 + step * i + barInset), py, (float)bw, 1.5f, _pPeakDot);
                 }
             }
 
@@ -273,9 +265,9 @@ namespace Pa1.App
             _pTick = new SKPaint { Color = T.Tick };
             _pTickTx = new SKPaint { Color = T.TickText, TextSize = 10, IsAntialias = true, Typeface = Mono() };
             _pHatch = new SKPaint { Style = SKPaintStyle.Fill, Shader = _hatchShader };
-            _pFill = new SKPaint { Style = SKPaintStyle.Fill, Shader = _unitGrad };
+            _pFill = new SKPaint { Style = SKPaintStyle.Fill, Shader = _unitGrad, IsAntialias = true };
             _pPeakLine = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 1, Color = T.PeakLine };
-            _pPeakDot = new SKPaint { Color = T.PeakDot };
+            _pPeakDot = new SKPaint { Color = T.PeakDot, IsAntialias = true };
             _pIdle = new SKPaint { Color = T.Idle, TextSize = 13, IsAntialias = true, Typeface = Mono() };
             _pHold = new SKPaint { Color = T.Hold, TextSize = 11, IsAntialias = true, Typeface = Mono() };
             if (_hatchPath == null) _hatchPath = new SKPath();
