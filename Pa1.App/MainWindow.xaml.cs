@@ -68,6 +68,7 @@ namespace Pa1.App
                 if (src != null) src.AddHook(MaxSizeHook);
                 int pref = 1;   /* DWMWCP_DONOTROUND */
                 int hr = DwmSetWindowAttribute(hwnd, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, ref pref, 4);
+                ApplyMinSize();   /* 按当前显示器分档同步最小尺寸（DIP 下限 → WPF 层） */
                 try
                 {
                     File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
@@ -99,10 +100,13 @@ namespace Pa1.App
                 Width = Settings.GetDouble("win.w", Width);
                 Height = Settings.GetDouble("win.h", Height);
             }
+            /* 最小尺寸分档（随当前工作区分辨率）：记忆尺寸低于下限时抬到下限 */
+            double minW, minH;
+            ComputeMinSize(wa.Width, wa.Height, out minW, out minH);
             if (Height > wa.Height) Height = wa.Height - 16;
             if (Width > wa.Width) Width = wa.Width - 16;
-            if (Width < 720) Width = 720;
-            if (Height < 520) Height = 520;
+            if (Width < minW) Width = minW;
+            if (Height < minH) Height = minH;
             if (Left + Width > wa.Right) Left = Math.Max(wa.Left, wa.Right - Width);
             if (Top + Height > wa.Bottom) Top = Math.Max(wa.Top, wa.Bottom - Height);
 
@@ -699,11 +703,20 @@ namespace Pa1.App
         /* ════════ 自绘标题栏：窗口控制 + 拖动/双击最大化 ════════ */
 
         /* WM_GETMINMAXINFO：透明无边框窗口默认最大化到整个屏幕（盖住任务栏），
-           手工把最大化矩形钳到显示器工作区。 */
+           手工把最大化矩形钳到显示器工作区；并按当前显示器工作区分档写入
+           ptMinTrackSize ——handled=true 会跳过 WPF 对 MinWidth/MinHeight 的
+           默认处理，此前下限形同虚设（窗口可拖到 585px 宽，页签/排序列/页脚被裁）。 */
         IntPtr MaxSizeHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             const int WM_GETMINMAXINFO = 0x0024;
-            if (msg == WM_GETMINMAXINFO)
+            const int WM_DISPLAYCHANGE = 0x007E;
+            const int WM_DPICHANGED = 0x02E0;
+            if (msg == WM_DISPLAYCHANGE || msg == WM_DPICHANGED)
+            {
+                /* 分辨率/缩放变了（或拖到另一台显示器）→ 重新按档位收放 DIP 下限（延迟到消息外，防重入） */
+                Dispatcher.BeginInvoke(new Action(ApplyMinSize));
+            }
+            else if (msg == WM_GETMINMAXINFO)
             {
                 var mmi = (MINMAXINFO)System.Runtime.InteropServices.Marshal.PtrToStructure(
                     lParam, typeof(MINMAXINFO));
@@ -717,12 +730,66 @@ namespace Pa1.App
                         mmi.ptMaxPosition.y = mi.rcWork.top - mi.rcMonitor.top;
                         mmi.ptMaxSize.x = mi.rcWork.right - mi.rcWork.left;
                         mmi.ptMaxSize.y = mi.rcWork.bottom - mi.rcWork.top;
+                        /* 最小拖放尺寸 = 分档下限（DIP）× 当前窗口 DPI（ptMinTrackSize 是物理像素） */
+                        double dpi = DpiOf(hwnd);
+                        double minW, minH;
+                        ComputeMinSize((mi.rcWork.right - mi.rcWork.left) / dpi,
+                                       (mi.rcWork.bottom - mi.rcWork.top) / dpi, out minW, out minH);
+                        mmi.ptMinTrackSize.x = (int)Math.Round(minW * dpi);
+                        mmi.ptMinTrackSize.y = (int)Math.Round(minH * dpi);
                         System.Runtime.InteropServices.Marshal.StructureToPtr(mmi, lParam, true);
                         handled = true;
                     }
                 }
             }
             return IntPtr.Zero;
+        }
+
+        /// <summary>最小窗口尺寸按当前工作区分档（DIP）：内容底线 900×620（小于它页签行/
+        /// 排序列/页脚被裁出界，2026-11-16 实测），随分辨率放大（系数 0.46/0.60），
+        /// 4K@100% 封顶 1320×900；小屏兜底永不超过工作区-16（任何分辨率都放得下）。</summary>
+        internal static void ComputeMinSize(double workW, double workH, out double w, out double h)
+        {
+            w = Math.Max(900, Math.Min(1320, workW * 0.46));
+            h = Math.Max(620, Math.Min(900, workH * 0.60));
+            w = Math.Min(w, Math.Max(480, workW - 16));
+            h = Math.Min(h, Math.Max(360, workH - 16));
+        }
+
+        double DpiOf(IntPtr hwnd)
+        {
+            try
+            {
+                uint d = GetDpiForWindow(hwnd);
+                if (d > 0) return d / 96.0;
+            }
+            catch { }
+            return 1.0;
+        }
+
+        /// <summary>把分档下限同步到 WPF MinWidth/MinHeight（布局层），与 ptMinTrackSize 双保险。</summary>
+        void ApplyMinSize()
+        {
+            double workW = SystemParameters.WorkArea.Width, workH = SystemParameters.WorkArea.Height;
+            var h = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (h != IntPtr.Zero)
+            {
+                IntPtr mon = MonitorFromWindow(h, MONITOR_DEFAULTTONEAREST);
+                if (mon != IntPtr.Zero)
+                {
+                    var mi = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MONITORINFO)) };
+                    if (GetMonitorInfo(mon, ref mi))
+                    {
+                        double dpi = DpiOf(h);
+                        workW = (mi.rcWork.right - mi.rcWork.left) / dpi;
+                        workH = (mi.rcWork.bottom - mi.rcWork.top) / dpi;
+                    }
+                }
+            }
+            double w2, h2;
+            ComputeMinSize(workW, workH, out w2, out h2);
+            MinWidth = w2;
+            MinHeight = h2;
         }
 
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
@@ -745,6 +812,8 @@ namespace Pa1.App
         static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         static extern bool GetMonitorInfo(IntPtr hmon, ref MONITORINFO mi);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern uint GetDpiForWindow(IntPtr hwnd);
         [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
         static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int val, int size);
         const uint MONITOR_DEFAULTTONEAREST = 2;
