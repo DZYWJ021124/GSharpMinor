@@ -185,17 +185,26 @@ namespace Pa1.App
                 }
             }
 
-            /* 空闲提示：墨迹中心落在 1kHz 栅格线上（用户定：字样中心与 1k 标识线重合），
-               Y 垂直居中绘图区、与电平档位无关。X 用 GetTextBounds 墨迹边界而非
-               MeasureText 前进宽度（尾侧边距会把墨迹偏左 ~1DIP）；Y 按字体度量校正。 */
+            /* 空闲提示：G|S 词隙中点对齐 1kHz 栅格线（用户定：词隙中点贴 1k 线，
+               而非全串墨迹中心——视觉上以两词之间的空隙为中点）。
+               Y 垂直居中绘图区、与电平档位无关。 */
             if (!HasContent)
             {
-                var ib = new SKRect();
-                _pIdle.MeasureText(IdleText, ref ib);   /* 墨迹边界（含首尾边距） */
+                /* 词隙中点 = (左词墨迹右缘 + 右词墨迹左缘)/2；
+                   右词在整串中的起点 = 前缀 advance（含词间空格） */
+                int sp = IdleText.IndexOf(' ');
+                string wL = sp > 0 ? IdleText.Substring(0, sp) : IdleText;
+                string wR = sp > 0 ? IdleText.Substring(sp + 1) : "";
+                var bL = new SKRect();
+                _pIdle.MeasureText(wL, ref bL);
+                float advToR = _pIdle.MeasureText(IdleText.Substring(0, sp > 0 ? sp + 1 : IdleText.Length));
+                var bR = new SKRect();
+                _pIdle.MeasureText(wR, ref bR);
+                double gapMid = (bL.Right + advToR + bR.Left) / 2;
                 var fm = _pIdle.FontMetrics;
                 double cx = x0 + AnalyzerMath.FToX(1000) * areaW, cy = PadTop + (H - (PadTop + PadBottom)) / 2;
                 float y = (float)(cy - (fm.Ascent + fm.Descent) / 2);
-                c.DrawText(IdleText, (float)(cx - (ib.Left + ib.Right) / 2), y, _pIdle);
+                c.DrawText(IdleText, (float)(cx - gapMid), y, _pIdle);
             }
 
             /* HOLD 徽标 */
