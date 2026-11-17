@@ -185,11 +185,16 @@ namespace Pa1.App
                 }
             }
 
-            /* 空闲提示 */
+            /* 空闲提示：固定居绘图区正中、与电平档位无关——原先 Y 取 DbToY(-42)，
+               会随 DbFloor（-60/-72/-96）上下漂移、永不居中；X 按整幅画布居中也会
+               比绘图区中心右偏 (PadRight-PadLeft)/2。基线按字体度量校正视觉中心。 */
             if (!HasContent)
             {
                 float w = _pIdle.MeasureText(IdleText);
-                c.DrawText(IdleText, (float)((W - w) / 2), (float)DbToY(-42, H), _pIdle);
+                var fm = _pIdle.FontMetrics;
+                double cx = x0 + areaW / 2, cy = PadTop + (H - (PadTop + PadBottom)) / 2;
+                float y = (float)(cy - (fm.Ascent + fm.Descent) / 2);
+                c.DrawText(IdleText, (float)(cx - w / 2), y, _pIdle);
             }
 
             /* HOLD 徽标 */

@@ -183,10 +183,10 @@
       </Style.Triggers>
     </Style>
 
-    <!-- ══ 滚动条：细轨道 + 定高 Thumb，纵向/横向共用视觉语言 ══
-         FixedThumbTrack 把 ViewportSize 恒为 NaN → Track 走定长 thumb 路径，
-         thumb 长度 = 原始高度（MinHeight/MinWidth=26），直接采用原始高度、
-         不随视口比例缩小，低内容比例下也不会被布局裁剪成"上圆下平"。
+    <!-- ══ 滚动条：细轨道 + Thumb，纵向/横向共用视觉语言 ══
+         FixedThumbTrack：thumb 长度 = clamp(轨道长×视口/内容, 26, 轨道长)——
+         最矮 26px、内容少按比例变长；ViewportSize 恒 NaN 走定长路径，
+         槽位即 thumb 自身尺寸，任何长度都不会被布局裁剪成"上圆下平"。
          颜色：Light=CLIP 琥珀 / Dark=磷光绿（ScrollThumbBrush，随主题换肤）。 -->
     <Style x:Key="ScrollRepeat" TargetType="RepeatButton">
       <Setter Property="Focusable" Value="False"/>
@@ -233,7 +233,7 @@
                   <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Style="{StaticResource ScrollRepeat}"/>
                 </Track.IncreaseRepeatButton>
                 <Track.Thumb>
-                  <!-- 原始高度 26px：FixedThumbTrack 按 DesiredSize 定长排布，不会被比例槽位裁剪 -->
+                  <!-- 最矮 26px、内容少按比例变长（FixedThumbTrack.SyncThumb 写 Height） -->
                   <Thumb Style="{StaticResource ScrollThumb}" MinHeight="26"/>
                 </Track.Thumb>
               </local:FixedThumbTrack>
@@ -257,7 +257,7 @@
                       <RepeatButton Command="{x:Static ScrollBar.PageRightCommand}" Style="{StaticResource ScrollRepeat}"/>
                     </Track.IncreaseRepeatButton>
                     <Track.Thumb>
-                      <!-- 原始宽度 26px：与纵向同理，定长排布不裁剪 -->
+                      <!-- 最矮 26px、内容少按比例变长（与纵向同理） -->
                       <Thumb Style="{StaticResource ScrollThumb}" MinWidth="26"/>
                     </Track.Thumb>
                   </local:FixedThumbTrack>
@@ -498,10 +498,12 @@
         </StackPanel>
       </DockPanel>
 
-      <!-- 频谱屏（细边框；不再挂 DropShadowEffect——大画布每帧离屏模糊会拖垮 Analyser 帧率并饿死音频线程） -->
+      <!-- 频谱屏（细边框；不再挂 DropShadowEffect——大画布每帧离屏模糊会拖垮 Analyser 帧率并饿死音频线程）
+           不设 MinHeight：任何固定下限都会在最小窗口高度（星号行槽位 ~167px < 200）下
+           撑破槽位，被 WPF 布局裁掉画布底部——频率刻度整行消失。画布按槽位自适应绘制。 -->
       <local:SquircleBorder Grid.Row="1" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="5"
               Background="{DynamicResource PanelBrush}" Padding="3">
-        <local:SpectrumControl x:Name="SpecView" MinHeight="200"/>
+        <local:SpectrumControl x:Name="SpecView"/>
       </local:SquircleBorder>
 
       <!-- 传输台卡片 -->
