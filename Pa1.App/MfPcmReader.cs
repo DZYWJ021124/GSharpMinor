@@ -179,7 +179,7 @@ namespace Pa1.App
             _seekAttempts = 0;
             DoSetPosition(_seekTarget);
             _repositionTo = -1;
-            try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+            try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                 DateTime.Now + " [mfs-seek] " + _seekTarget.ToString("0.00") + Environment.NewLine); } catch { }
         }
 
@@ -200,7 +200,7 @@ namespace Pa1.App
                 if ((flags & MF_SOURCE_READER_FLAG.MF_SOURCE_READERF_ENDOFSTREAM) != 0 || sample == null)
                 {
                     _seekTarget = -1;
-                    try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                    try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                         DateTime.Now + " [mfs-eof] pos=" + (_position / (double)_fmt.AverageBytesPerSecond).ToString("0.00") + Environment.NewLine); } catch { }
                     return false;
                 }

@@ -204,11 +204,11 @@ namespace Pa1.App
                     if (_posDop != null) { _posDop.CurrentTime = v; return; }
                     if (_posDsd != null) { _posDsd.CurrentTime = v; return; }
                     if (_posStream != null) _posStream.CurrentTime = TimeSpan.FromSeconds(v);
-                    try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"), DateTime.Now + " [seek] " + v.ToString("0.00") + Environment.NewLine); } catch { }
+                    try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"), DateTime.Now + " [seek] " + v.ToString("0.00") + Environment.NewLine); } catch { }
                 }
                 catch (Exception ex)
                 {
-                    try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"), DateTime.Now + " [seek-fail] " + ex.Message + Environment.NewLine); } catch { }
+                    try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"), DateTime.Now + " [seek-fail] " + ex.Message + Environment.NewLine); } catch { }
                 }
             }
         }
@@ -387,7 +387,7 @@ namespace Pa1.App
                 ResolveNormGain(path, meta, _posDop != null);
                 try
                 {
-                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                         DateTime.Now + " [plan] " + Plan.Label
                         + (Error != null ? "  err=" + Error : "")
                         + "  " + Path.GetFileName(path) + Environment.NewLine);
@@ -437,7 +437,7 @@ namespace Pa1.App
                 if (trueLen <= 0) return;
                 try
                 {
-                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                         DateTime.Now + " [len] " + Path.GetFileName(path) +
                         " est=" + est.ToString("0.00") + " true=" + trueLen.ToString("0.00") + Environment.NewLine);
                 }
@@ -654,7 +654,7 @@ namespace Pa1.App
             {
                 double p = Position, l = Length;
                 if (_lenTrue <= 0 && p > 0) _lenTrue = p;
-                File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                     DateTime.Now + " [end] pos=" + p.ToString("0.00") + " len=" + l.ToString("0.00") + Environment.NewLine);
             }
             catch { }
@@ -1034,7 +1034,7 @@ namespace Pa1.App
                 {
                     try
                     {
-                        System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pa1-native-crash.log"),
+                        System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "gsharpminor-crash.log"),
                             DateTime.Now + " [underrun] n=" + n + Environment.NewLine);
                     }
                     catch { }
@@ -1344,7 +1344,7 @@ namespace Pa1.App
                 {
                     try
                     {
-                        System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pa1-native-crash.log"),
+                        System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "gsharpminor-crash.log"),
                             DateTime.Now + " [underrun] dop n=" + n + Environment.NewLine);
                     }
                     catch { }

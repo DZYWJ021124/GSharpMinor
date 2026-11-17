@@ -73,7 +73,7 @@ namespace Pa1.App
                 ApplyMinSize();   /* 按当前显示器分档同步最小尺寸（DIP 下限 → WPF 层） */
                 try
                 {
-                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                         DateTime.Now + " [dwm] corner-pref hr=0x" + hr.ToString("X8") + Environment.NewLine);
                 }
                 catch { }
@@ -160,7 +160,7 @@ namespace Pa1.App
             {
                 try
                 {
-                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                         DateTime.Now + " [cli] " + a + Environment.NewLine);
                 }
                 catch { }
@@ -225,7 +225,7 @@ namespace Pa1.App
                         + (cliSkipped > 0 ? " · " + cliSkipped + " SKIPPED" : "");
                     try
                     {
-                        File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                        File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                             DateTime.Now + " [add-cli] dir=" + p + " batch=" + batch.Count
                             + " total +" + cliAdded + " added, " + cliSkipped + " skipped, total=" + _rows.Count
                             + Environment.NewLine);
@@ -377,7 +377,7 @@ namespace Pa1.App
                     wsMb = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 >> 20;
                 }
                 catch { gcMb = wsMb = -1; g0 = g1 = g2 = -1; }
-                File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                     DateTime.Now + " [beat] ticks=" + _tickCount + " fps=" + fps.ToString("0.0")
                     + " mem=" + gcMb + "M ws=" + wsMb + "M g0=" + g0 + " g1=" + g1 + " g2=" + g2 + Environment.NewLine);
                 }
@@ -386,7 +386,7 @@ namespace Pa1.App
             {
                 try
                 {
-                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                    File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                         DateTime.Now + " [tick] " + ex + Environment.NewLine);
                 }
                 catch { }
@@ -599,14 +599,14 @@ namespace Pa1.App
             /* 解码（尤其 DSD 全量内存解码）严禁在 UI 线程执行——大曲目直接「未响应」 */
             System.Threading.Tasks.Task.Run(() =>
             {
-                try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"), DateTime.Now + " [load] begin gen=" + gen + " title=" + meta.Title + Environment.NewLine); } catch { }
+                try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"), DateTime.Now + " [load] begin gen=" + gen + " title=" + meta.Title + Environment.NewLine); } catch { }
                 bool ok = false;
                 try
                 {
                     lock (_engGate) { ok = _eng.LoadFile(path); if (ok) _eng.Play(); }
                 }
                 catch (Exception ex) { _eng.Error = ex.Message; }
-                try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"), DateTime.Now + " [load] end gen=" + gen + " ok=" + ok + Environment.NewLine); } catch { }
+                try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"), DateTime.Now + " [load] end gen=" + gen + " ok=" + ok + Environment.NewLine); } catch { }
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     if (gen == _loadGen) _loading = false;   /* 过期任务不解除忙态 */
@@ -1025,7 +1025,7 @@ namespace Pa1.App
                     }
                     try
                     {
-                        File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                        File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                             DateTime.Now + " [add] inputs=" + inputs.Count + " files=" + files.Count
                             + " fresh=" + fresh.Count + " +" + added + " added, " + skipped + " skipped ("
                             + skipExist + " exist + " + skipDup + " batch), " + notAudio + " not-audio, total=" + _rows.Count
@@ -1146,7 +1146,7 @@ namespace Pa1.App
             Key k = e.Key == Key.System ? e.SystemKey : e.Key;
             try
             {
-                File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                     DateTime.Now + " [key] " + k + Environment.NewLine);
             }
             catch { }

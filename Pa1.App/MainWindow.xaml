@@ -444,7 +444,8 @@
         </Grid.ColumnDefinitions>
 
         <TextBlock x:Name="BrandText" Grid.Column="0" Text="G# minor" VerticalAlignment="Center"
-                   FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="32" FontWeight="Bold"
+                   FontFamily="/GSharpMinor;component/Assets/Fonts/#Cormorant Garamond" FontStyle="Italic"
+                   FontSize="36" FontWeight="Bold"
                    Foreground="{DynamicResource PhosBrush}">
           <TextBlock.Effect>
             <DropShadowEffect x:Name="BrandGlow" BlurRadius="22" ShadowDepth="0" Opacity="0.5" Color="#3dff85"/>

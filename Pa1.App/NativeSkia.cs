@@ -6,7 +6,7 @@ namespace Pa1.App
 {
     /// <summary>SkiaSharp 原生库引导。
     /// 目录部署：直接加载 exe 旁 x64\ / x86\ 子目录（NuGet 标准布局）。
-    /// 单文件部署：从内嵌资源抽出到 %LOCALAPPDATA%\PHOSPHOR-PA1\ 再 LoadLibrary；
+    /// 单文件部署：从内嵌资源抽出到 %LOCALAPPDATA%\GSharpMinor\ 再 LoadLibrary；
     /// 已加载的同名模块会让后续 P/Invoke("libSkiaSharp") 直接命中，无需 SkiaSharp 探测。</summary>
     internal static class NativeSkia
     {
@@ -38,9 +38,7 @@ namespace Pa1.App
                 using (var s = asm.GetManifestResourceStream(resName))
                 {
                     if (s == null) return;
-                    string dir = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "PHOSPHOR-PA1");
+                    string dir = DataDirs.Local;
                     Directory.CreateDirectory(dir);
                     string dst = Path.Combine(dir, "libSkiaSharp.dll");
                     try

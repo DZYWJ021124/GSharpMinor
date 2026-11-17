@@ -14,6 +14,8 @@ namespace Pa1.App
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            /* 旧 PHOSPHOR-PA1 数据目录 → GSharpMinor（先于任何 Settings/Loudness/NativeSkia 路径读取） */
+            DataDirs.MigrateLegacy();
             /* 必须先于任何 Skia 类型加载：单文件模式下从内嵌资源抽出 libSkiaSharp */
             NativeSkia.EnsureLoaded();
             base.OnStartup(e);
@@ -22,7 +24,7 @@ namespace Pa1.App
             AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandled;
             try
             {
-                File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                     DateTime.Now + " [start] pid=" + System.Diagnostics.Process.GetCurrentProcess().Id + Environment.NewLine);
             }
             catch { }
@@ -33,7 +35,7 @@ namespace Pa1.App
             try { timeEndPeriod(1); } catch { }
             try
             {
-                File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                     DateTime.Now + " [exit] code=" + e.ApplicationExitCode + Environment.NewLine);
             }
             catch { }
@@ -44,7 +46,7 @@ namespace Pa1.App
         {
             try
             {
-                File.AppendAllText(Path.Combine(Path.GetTempPath(), "pa1-native-crash.log"),
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "gsharpminor-crash.log"),
                     DateTime.Now + " [" + kind + "] " + ex + Environment.NewLine + Environment.NewLine);
             }
             catch { }
@@ -53,7 +55,7 @@ namespace Pa1.App
         static void OnDispatcherUnhandled(object s, DispatcherUnhandledExceptionEventArgs e)
         {
             Log("dispatcher", e.Exception);
-            MessageBox.Show("G# minor 发生错误：\n" + e.Exception.Message + "\n\n详情已写入 %TEMP%\\pa1-native-crash.log",
+            MessageBox.Show("G# minor 发生错误：\n" + e.Exception.Message + "\n\n详情已写入 %TEMP%\\gsharpminor-crash.log",
                 "G# minor", MessageBoxButton.OK, MessageBoxImage.Warning);
             e.Handled = true;
         }

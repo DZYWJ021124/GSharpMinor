@@ -5,11 +5,10 @@ using System.IO;
 namespace Pa1.App
 {
     /// <summary>用户设置记忆：主题/音量/独占/设备/播放模式/页签/窗口位置。
-    /// 存于 %APPDATA%\PHOSPHOR-PA1\settings.txt（key=value），对应 HTML 版 localStorage。</summary>
+    /// 存于 %APPDATA%\GSharpMinor\settings.txt（key=value），对应 HTML 版 localStorage。</summary>
     public static class Settings
     {
-        static readonly string Dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PHOSPHOR-PA1");
+        static readonly string Dir = DataDirs.Roaming;
         static readonly string FilePath = Path.Combine(Dir, "settings.txt");
         static readonly Dictionary<string, string> _kv =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

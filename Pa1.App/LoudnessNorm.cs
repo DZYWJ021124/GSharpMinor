@@ -9,13 +9,12 @@ using Pa1.Core;
 namespace Pa1.App
 {
     /// <summary>
-    /// 响度测量持久缓存：%APPDATA%\PHOSPHOR-PA1\loudness.txt，行格式 path|mtimeTicks|lufs|peakDb。
+    /// 响度测量持久缓存：%APPDATA%\GSharpMinor\loudness.txt，行格式 path|mtimeTicks|lufs|peakDb。
     /// mtime 校验防文件更换后读旧值。行含 '|' 的路径会失效（罕见）——按文件重写，不做增量追加。
     /// </summary>
     public static class LoudnessCache
     {
-        static readonly string FilePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PHOSPHOR-PA1", "loudness.txt");
+        static readonly string FilePath = Path.Combine(DataDirs.Roaming, "loudness.txt");
         static readonly Dictionary<string, string> _map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         static readonly object _lk = new object();
         static bool _loaded;

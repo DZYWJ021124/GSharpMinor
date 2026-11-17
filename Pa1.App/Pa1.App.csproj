@@ -5,7 +5,7 @@
     <TargetFramework>net48</TargetFramework>
     <UseWPF>true</UseWPF>
     <LangVersion>7.3</LangVersion>
-    <AssemblyName>PHOSPHOR-PA1</AssemblyName>
+    <AssemblyName>GSharpMinor</AssemblyName>
     <RootNamespace>Pa1.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
@@ -30,6 +30,14 @@
   <ItemGroup>
     <Resource Include="Assets\icon-dark.png" />
     <Resource Include="Assets\icon-light.png" />
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <!-- 标题字体 Cormorant Garamond Italic（google/fonts 可变字体经 fontTools 实例化 wght 400/700 静态面） -->
+  <ItemGroup>
+    <Resource Include="Assets\Fonts\CormorantGaramond-Italic.ttf" />
+    <Resource Include="Assets\Fonts\CormorantGaramond-BoldItalic.ttf" />
+    <Resource Include="Assets\Fonts\OFL.txt" />
   </ItemGroup>
 
   <!-- SkiaSharp 原生库内嵌：单文件 exe 自带，启动时 NativeSkia 抽出并 LoadLibrary -->
