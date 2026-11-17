@@ -185,16 +185,17 @@ namespace Pa1.App
                 }
             }
 
-            /* 空闲提示：固定居绘图区正中、与电平档位无关——原先 Y 取 DbToY(-42)，
-               会随 DbFloor（-60/-72/-96）上下漂移、永不居中；X 按整幅画布居中也会
-               比绘图区中心右偏 (PadRight-PadLeft)/2。基线按字体度量校正视觉中心。 */
+            /* 空闲提示：墨迹中心落在 1kHz 栅格线上（用户定：字样中心与 1k 标识线重合），
+               Y 垂直居中绘图区、与电平档位无关。X 用 GetTextBounds 墨迹边界而非
+               MeasureText 前进宽度（尾侧边距会把墨迹偏左 ~1DIP）；Y 按字体度量校正。 */
             if (!HasContent)
             {
-                float w = _pIdle.MeasureText(IdleText);
+                var ib = new SKRect();
+                _pIdle.MeasureText(IdleText, ref ib);   /* 墨迹边界（含首尾边距） */
                 var fm = _pIdle.FontMetrics;
-                double cx = x0 + areaW / 2, cy = PadTop + (H - (PadTop + PadBottom)) / 2;
+                double cx = x0 + AnalyzerMath.FToX(1000) * areaW, cy = PadTop + (H - (PadTop + PadBottom)) / 2;
                 float y = (float)(cy - (fm.Ascent + fm.Descent) / 2);
-                c.DrawText(IdleText, (float)(cx - w / 2), y, _pIdle);
+                c.DrawText(IdleText, (float)(cx - (ib.Left + ib.Right) / 2), y, _pIdle);
             }
 
             /* HOLD 徽标 */
