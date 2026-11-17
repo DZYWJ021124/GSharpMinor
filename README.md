@@ -71,7 +71,17 @@ G# minor（原名 PHOSPHOR PA-1）是一款 Windows 本地音乐播放器，
 build.bat
 ```
 
-即：`Pa1.Core` 回归测试（101 项）→ 构建 `Pa1.App` → 打包 `dist\GSharpMinor.exe`（Costura 单文件）。
+即：`Pa1.Core` 回归测试（101 项）→ 构建 `Pa1.App` → 本地签名（best-effort）→ 打包 `dist\GSharpMinor.exe`（Costura 单文件）。
+
+## Windows SmartScreen 提示
+
+从浏览器下载的 exe 带有"网络标记"，首次启动可能弹出 **"Windows 已保护你的电脑"**（Microsoft Defender SmartScreen）。这是未在 Microsoft 建立信誉的应用的通用提示，不是病毒告警：
+
+- **临时放行**：点"更多信息" → "仍要运行"（同一只需一次）。
+- **永久放行**（本机）：右键 exe → 属性 → 勾选"解除锁定"→ 确定；或 `Unblock-File .\GSharpMinor.exe`。
+- 本地构建的 `dist\GSharpMinor.exe` 没有网络标记，不会触发此提示。
+
+构建产物带本地发布者签名（`GSharpMinor Local Publisher`）；SmartScreen 以云端信誉判定，自签名不能免除上述提示。对外分发想彻底消除提示，需购买公开 CA 的 OV/EV 代码签名证书。
 
 ## CLI 自动化
 

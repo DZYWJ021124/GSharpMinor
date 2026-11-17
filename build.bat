@@ -7,7 +7,7 @@ rem ============================================================
 setlocal
 cd /d "%~dp0"
 
-echo [1/3] Pa1.Core regression
+echo [1/4] Pa1.Core regression
 if /i "%~1"=="notest" goto :build
 dotnet run --project Pa1.Tests -c Release
 if errorlevel 1 (
@@ -16,14 +16,17 @@ if errorlevel 1 (
 )
 
 :build
-echo [2/3] build Pa1.App Release
+echo [2/4] build Pa1.App Release
 dotnet build Pa1.App\Pa1.App.csproj -c Release -v q
 if errorlevel 1 (
     echo [X] build failed
     exit /b 1
 )
 
-echo [3/3] package dist\
+echo [3/4] code sign (local publisher cert, best-effort)
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sign.ps1
+
+echo [4/4] package dist\
 if not exist dist mkdir dist
 copy /y Pa1.App\bin\Release\GSharpMinor.exe dist\
 if errorlevel 1 (
