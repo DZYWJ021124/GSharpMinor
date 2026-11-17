@@ -53,8 +53,8 @@ namespace Pa1.App
         static void OnDispatcherUnhandled(object s, DispatcherUnhandledExceptionEventArgs e)
         {
             Log("dispatcher", e.Exception);
-            MessageBox.Show("PHOSPHOR PA-1 发生错误：\n" + e.Exception.Message + "\n\n详情已写入 %TEMP%\\pa1-native-crash.log",
-                "PHOSPHOR PA-1", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("G# minor 发生错误：\n" + e.Exception.Message + "\n\n详情已写入 %TEMP%\\pa1-native-crash.log",
+                "G# minor", MessageBoxButton.OK, MessageBoxImage.Warning);
             e.Handled = true;
         }
 

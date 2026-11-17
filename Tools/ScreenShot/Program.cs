@@ -64,7 +64,8 @@ namespace ScreenShot
                         var sb = new System.Text.StringBuilder(256);
                         GetWindowText(h, sb, 256);
                         string title = sb.ToString();
-                        if (title.IndexOf("PHOSPHOR", StringComparison.OrdinalIgnoreCase) >= 0
+                        if (title.IndexOf("G# minor", StringComparison.OrdinalIgnoreCase) >= 0
+                            || title.IndexOf("PHOSPHOR", StringComparison.OrdinalIgnoreCase) >= 0
                             || title.IndexOf(procName, StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             target = h;
