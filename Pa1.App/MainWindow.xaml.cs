@@ -10,6 +10,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Pa1.Core;
@@ -28,6 +29,7 @@ namespace Pa1.App
         bool _restorePending;       /* 曲库恢复读标签中：此刻落盘会把未恢复完的列表冲掉 */
         bool _scrubbing;
         bool _initDone;
+        BitmapFrame _iconDark, _iconLight;   /* 主题窗口图标（pack Resource，缓存避免每次换肤重解码） */
         int _mixRate, _mixBits;
         DateTime _mixT = DateTime.MinValue;
         double[] _lo, _hi, _fc;
@@ -304,6 +306,13 @@ namespace Pa1.App
             g.GradientStops.Add(new GradientStop(T.WPhos, 0.72));
             g.GradientStops.Add(new GradientStop(T.WAmber, 1));
             MeterFill.Fill = g;
+            /* 窗口图标（任务栏/Alt-Tab）随主题：Dark=黑金谱号 / Light=米绿谱号 */
+            if (_iconDark == null)
+            {
+                _iconDark = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-dark.png"));
+                _iconLight = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-light.png"));
+            }
+            Icon = ReferenceEquals(T, ThemePal.Dark) ? _iconDark : _iconLight;
         }
 
         void SetRes(string key, Color c)

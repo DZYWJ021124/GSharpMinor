@@ -8,6 +8,7 @@
     <AssemblyName>PHOSPHOR-PA1</AssemblyName>
     <RootNamespace>Pa1.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Prefer32Bit>false</Prefer32Bit>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
@@ -23,6 +24,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Pa1.Core\Pa1.Core.csproj" />
+  </ItemGroup>
+
+  <!-- 主题应用图标（Dark=黑金谱号 / Light=米绿谱号）：窗口图标随主题切换；app.ico 为 EXE 静态图标 -->
+  <ItemGroup>
+    <Resource Include="Assets\icon-dark.png" />
+    <Resource Include="Assets\icon-light.png" />
   </ItemGroup>
 
   <!-- SkiaSharp 原生库内嵌：单文件 exe 自带，启动时 NativeSkia 抽出并 LoadLibrary -->
