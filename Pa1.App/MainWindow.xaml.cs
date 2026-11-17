@@ -1047,6 +1047,37 @@ namespace Pa1.App
             if (idx >= 0) PlayIndex(idx);
         }
 
+        /* 滚轮整行吸附：拖动走像素滚动（连续），滚轮手动换算成整行步进并吸附到
+           行边界——用户要的组合行为（滚轮吸附/拖动连续）。每格 = WheelScrollLines 行。
+           Windows 方向：Delta>0（向上滚）→ 偏移减小（看前面的内容）。 */
+        void TrackList_PreviewMouseWheel(object s, MouseWheelEventArgs e)
+        {
+            var sv = TrackListScroll();
+            if (sv == null) return;
+            int rows = (int)Math.Round(e.Delta / 120.0 * SystemParameters.WheelScrollLines);
+            if (rows == 0) return;
+            double rowH = TrackList.RowHeight > 0 ? TrackList.RowHeight : 36;
+            double max = sv.ScrollableHeight;
+            double target = (Math.Round(sv.VerticalOffset / rowH) - rows) * rowH;
+            if (target < 0) target = 0;
+            if (target > max) target = max;
+            sv.ScrollToVerticalOffset(target);
+            e.Handled = true;
+        }
+
+        ScrollViewer TrackListScroll()
+        {
+            if (_listSv != null) return _listSv;
+            DependencyObject d = TrackList;
+            while (d != null)
+            {
+                d = VisualTreeHelper.GetChild(d, 0);
+                if (d is ScrollViewer sv) { _listSv = sv; break; }
+            }
+            return _listSv;
+        }
+        ScrollViewer _listSv;
+
         /* 进度条拖动：MouseDown 捕获鼠标（拖出轨道/窗口仍收得到 MouseUp，防 seek 丢失 +
            _scrubbing 粘住）；松手时按最终位置 seek；捕获被外部夺走则只解除拖动态不 seek。 */
         void Scrub_MouseLeftButtonDown(object s, MouseButtonEventArgs e)

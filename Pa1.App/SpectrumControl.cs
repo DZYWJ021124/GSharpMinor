@@ -112,7 +112,7 @@ namespace Pa1.App
             {
                 double y = DbToY(db, H);
                 c.DrawLine((float)x0, (float)y, (float)(x0 + areaW + 4), (float)y, db == 0 ? _pGrid0 : _pGrid);
-                c.DrawText((db == 0 ? "0" : db.ToString()) + "dB", (float)(W - PadRight + 12), (float)(y + 4), _pAxisTx);
+                c.DrawText((db == 0 ? "-00" : db.ToString()) + "dB", (float)(W - PadRight + 12), (float)(y + 4), _pAxisTx);
             }
             /* 基线（下限档位）：非 10 倍数时单独画线标注（-72/-96）；-60 时与 -60 刻度重合单独画也无碍 */
             {

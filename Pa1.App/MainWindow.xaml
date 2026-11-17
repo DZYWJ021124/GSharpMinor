@@ -661,11 +661,16 @@
         <!-- 曲目表（卡片化） -->
         <local:SquircleBorder Grid.Row="1" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
                 BorderThickness="1" CornerRadius="5">
+          <!-- ScrollUnit=Pixel：默认 Item 按行滚动会让拖动 thumb 时偏移吸附到整行
+               边界（36px 一跳）回灌给滑块——就是拖动的"阶梯感"；像素滚动拖动全程连续。
+               滚轮的整行吸附由 PreviewMouseWheel 接管（滚轮 → 整行步进+对齐行边界） -->
           <DataGrid x:Name="TrackList" AutoGenerateColumns="False" CanUserAddRows="False"
                     IsReadOnly="True" SelectionUnit="FullRow" CanUserSortColumns="False"
-                    MouseDoubleClick="TrackList_MouseDoubleClick" HeadersVisibility="Column"
+                    MouseDoubleClick="TrackList_MouseDoubleClick" PreviewMouseWheel="TrackList_PreviewMouseWheel"
+                    HeadersVisibility="Column"
                     Background="Transparent" RowBackground="Transparent" AlternatingRowBackground="Transparent"
                     ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    VirtualizingPanel.ScrollUnit="Pixel"
                     GridLinesVisibility="None"
                     FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="11.5" RowHeight="36" BorderThickness="0">
             <DataGrid.RowStyle>
