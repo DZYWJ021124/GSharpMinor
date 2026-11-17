@@ -443,13 +443,17 @@
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="BrandText" Grid.Column="0" Text="G# minor" VerticalAlignment="Center"
+        <TextBlock x:Name="BrandText" Grid.Column="0" VerticalAlignment="Center"
                    FontFamily="/GSharpMinor;component/Assets/Fonts/#Cormorant Garamond" FontStyle="Italic"
                    FontSize="36" FontWeight="Bold"
                    Foreground="{DynamicResource PhosBrush}">
           <TextBlock.Effect>
             <DropShadowEffect x:Name="BrandGlow" BlurRadius="22" ShadowDepth="0" Opacity="0.5" Color="#3dff85"/>
           </TextBlock.Effect>
+          <!-- G# minor：# 号上标（乐谱调性记法）。用 TextTop 而非 Superscript——
+               Superscript 抬升量按字体上标偏移算，会把 # 整个悬出 G 的字冠；
+               TextTop 让 # 顶部与大写字母顶部对齐，落在字冠带上 -->
+          <Run Text="G"/><Run Text="#" FontSize="24" BaselineAlignment="TextTop"/><Run Text=" minor"/>
         </TextBlock>
 
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
