@@ -724,8 +724,11 @@ namespace Pa1.App
             const int WM_DPICHANGED = 0x02E0;
             if (msg == WM_DISPLAYCHANGE || msg == WM_DPICHANGED)
             {
-                /* 分辨率/缩放变了（或拖到另一台显示器）→ 重新按档位收放 DIP 下限（延迟到消息外，防重入） */
-                Dispatcher.BeginInvoke(new Action(ApplyMinSize));
+                /* 分辨率/缩放变了（或拖到另一台显示器）→ 重新按档位收放 DIP 下限，
+                   并把窗口本身钳回新工作区（延迟到消息外，防重入）。
+                   只改 MinWidth/MinHeight 不够：从大屏切到小屏时窗口右下角会留在屏外，
+                   抓不到缩放边缘；高 DPI 下绝对下限还可能几乎等于整个工作区。 */
+                Dispatcher.BeginInvoke(new Action(() => { ApplyMinSize(); RefitToWorkArea(); }));
             }
             else if (msg == WM_GETMINMAXINFO)
             {
@@ -763,6 +766,11 @@ namespace Pa1.App
         {
             w = Math.Max(900, Math.Min(1320, workW * 0.46));
             h = Math.Max(620, Math.Min(900, workH * 0.60));
+            /* 高 DPI / 低物理分辨率下逻辑工作区很小（如 1920x1080@200% 仅 960x520DIP），
+               900x620 的绝对底线会吃掉整个工作区 → 拖放余量几乎为零、看起来"不能缩放"。
+               下限不超过工作区 72%，保证四周总有可拖放空间；内容底线在够大的屏上仍完整生效。 */
+            w = Math.Min(w, Math.Max(360, workW * 0.72));
+            h = Math.Min(h, Math.Max(300, workH * 0.72));
             w = Math.Min(w, Math.Max(480, workW - 16));
             h = Math.Min(h, Math.Max(360, workH - 16));
         }
@@ -801,6 +809,23 @@ namespace Pa1.App
             ComputeMinSize(workW, workH, out w2, out h2);
             MinWidth = w2;
             MinHeight = h2;
+        }
+
+        /// <summary>分辨率/缩放变化后把窗口拉回新工作区：从大屏切到小屏时窗口右下角会留在屏外，
+        /// 抓不到缩放边缘。用与 Left/Top/Width/Height 同一坐标系的 SystemParameters.WorkArea（DIP）。</summary>
+        void RefitToWorkArea()
+        {
+            if (WindowState != WindowState.Normal) return;
+            var wa = SystemParameters.WorkArea;
+            if (wa.Width <= 0 || wa.Height <= 0) return;
+            double minW, minH;
+            ComputeMinSize(wa.Width, wa.Height, out minW, out minH);
+            double w = Math.Min(Math.Max(Width, minW), wa.Width - 16);
+            double h = Math.Min(Math.Max(Height, minH), wa.Height - 16);
+            Left = Math.Min(Math.Max(Left, wa.Left), wa.Right - w);
+            Top = Math.Min(Math.Max(Top, wa.Top), wa.Bottom - h);
+            Width = w;
+            Height = h;
         }
 
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
