@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Pa1.App"
         Title="G# minor · Spectrum Analyzer" Height="820" Width="1180"
-        Icon="Assets/icon-dark.png"
+        Icon="Assets/icon-dark-hi.png"
         MinHeight="620" MinWidth="900"
         Background="Transparent" AllowsTransparency="True" WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize" StateChanged="Win_StateChanged"

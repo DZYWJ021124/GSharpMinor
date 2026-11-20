@@ -72,6 +72,13 @@ light256 = fit_ink(light_raw)
 dark256.save(os.path.join(ASSETS, "icon-dark.png"))
 light256.save(os.path.join(ASSETS, "icon-light.png"))
 
+# High-res variants for Window.Icon: more source pixels when Windows downsamples
+# to taskbar size. Still pre-cropped (no 20% empty margin) and fringe-cleaned.
+dark_hi = fit_ink(dark_raw, canvas=1024)
+light_hi = fit_ink(light_raw, canvas=1024)
+dark_hi.save(os.path.join(ASSETS, "icon-dark-hi.png"))
+light_hi.save(os.path.join(ASSETS, "icon-light-hi.png"))
+
 # ICO: multi-size from the premultiplied 256 base, each unpremultiplied separately
 base_pm = premultiply(dark256)
 sizes = [16, 24, 32, 48, 64, 128, 256]

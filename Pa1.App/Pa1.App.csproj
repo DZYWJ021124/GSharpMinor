@@ -30,6 +30,8 @@
   <ItemGroup>
     <Resource Include="Assets\icon-dark.png" />
     <Resource Include="Assets\icon-light.png" />
+    <Resource Include="Assets\icon-dark-hi.png" />
+    <Resource Include="Assets\icon-light-hi.png" />
     <Resource Include="Assets\app.ico" />
   </ItemGroup>
 
