@@ -67,7 +67,7 @@ namespace Pa1.App
             {
                 var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
                 var src = System.Windows.Interop.HwndSource.FromHwnd(hwnd);
-                if (src != null) src.AddHook(MaxSizeHook);
+                if (src != null) src.AddHook(WindowMessageHook);
                 int pref = 1;   /* DWMWCP_DONOTROUND */
                 int hr = DwmSetWindowAttribute(hwnd, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, ref pref, 4);
                 QueueDisplayUpdate();
@@ -311,10 +311,8 @@ namespace Pa1.App
             /* 窗口图标（任务栏/Alt-Tab）随主题：Dark=黑金谱号 / Light=米绿谱号 */
             if (_iconDark == null)
             {
-                /* 窗口图标用 1024px 裁切版：Windows 缩到任务栏尺寸时源像素更多、更清晰；
-                   .ico（EXE 静态图标）仍用 256 多档——ICO 条目上限就是 256。 */
-                _iconDark = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-dark-hi.png"));
-                _iconLight = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-light-hi.png"));
+                _iconDark = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-dark.png"));
+                _iconLight = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-light.png"));
             }
             Icon = ReferenceEquals(T, ThemePal.Dark) ? _iconDark : _iconLight;
         }
@@ -721,11 +719,36 @@ namespace Pa1.App
            手工把最大化矩形钳到显示器工作区；并按当前显示器工作区写入
            ptMinTrackSize ——handled=true 会跳过 WPF 对 MinWidth/MinHeight 的
            默认处理，此前下限形同虚设（窗口可拖到 585px 宽，页签/排序列/页脚被裁）。 */
-        IntPtr MaxSizeHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        IntPtr WindowMessageHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             const int WM_GETMINMAXINFO = 0x0024;
             const int WM_DISPLAYCHANGE = 0x007E;
             const int WM_DPICHANGED = 0x02E0;
+            const int WM_NCHITTEST = 0x0084;
+            if (_traceWindow)
+            {
+                if (msg == 0x00A1) TraceWindow(hwnd, "nonclient-down hit=" + wParam.ToInt32());
+                if (msg == 0x0112) TraceWindow(hwnd, "system-command=0x" + wParam.ToInt64().ToString("X"));
+                if (msg == 0x0232) TraceWindow(hwnd, "drag-end");
+            }
+            if (msg == WM_NCHITTEST)
+            {
+                RECT bounds;
+                if (!GetWindowRect(hwnd, out bounds)) return IntPtr.Zero;
+                // 消息和窗口矩形使用同一屏幕坐标系；左/上方的副屏可有负坐标。
+                long point = lParam.ToInt64();
+                int x = unchecked((short)point), y = unchecked((short)(point >> 16));
+                if (x < bounds.left || x >= bounds.right || y < bounds.top || y >= bounds.bottom)
+                    return IntPtr.Zero;
+
+                handled = true;
+                if (WindowState != WindowState.Normal ||
+                    (ResizeMode != ResizeMode.CanResize && ResizeMode != ResizeMode.CanResizeWithGrip))
+                    return new IntPtr(HTCLIENT);
+
+                int border = (int)Math.Ceiling(8 * DpiOf(hwnd));
+                return new IntPtr(ResizeHit(bounds, x, y, border));
+            }
             if (msg == WM_DISPLAYCHANGE || msg == WM_DPICHANGED)
             {
                 QueueDisplayUpdate(); // DPI 消息交给 WPF，待其处理建议矩形后再校正。
@@ -759,6 +782,31 @@ namespace Pa1.App
             return IntPtr.Zero;
         }
 
+        const int HTCLIENT = 1, HTLEFT = 10, HTRIGHT = 11, HTTOP = 12,
+                  HTTOPLEFT = 13, HTTOPRIGHT = 14, HTBOTTOM = 15,
+                  HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
+
+        static int ResizeHit(RECT bounds, int x, int y, int border)
+        {
+            bool left = x < bounds.left + border;
+            bool right = x >= bounds.right - border;
+            if (y < bounds.top + border)
+            {
+                if (left) return HTTOPLEFT;
+                if (right) return HTTOPRIGHT;
+                return HTTOP;
+            }
+            if (y >= bounds.bottom - border)
+            {
+                if (left) return HTBOTTOMLEFT;
+                if (right) return HTBOTTOMRIGHT;
+                return HTBOTTOM;
+            }
+            if (left) return HTLEFT;
+            if (right) return HTRIGHT;
+            return HTCLIENT; // 标题栏内部和按钮仍走原来的 WPF 输入处理。
+        }
+
         // DIP 已包含系统缩放。更大的像素工作区不应抬高用户可拖动的下限。
         internal static void ComputeMinSize(double workW, double workH, out double w, out double h)
         {
@@ -779,6 +827,27 @@ namespace Pa1.App
 
         bool _displayUpdateQueued;
         bool _fitOnRestore;
+        readonly bool _traceWindow = Environment.GetCommandLineArgs().Contains("--window-trace");
+
+        void TraceWindow(IntPtr hwnd, string reason)
+        {
+            try
+            {
+                RECT r;
+                var mi = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MONITORINFO)) };
+                if (!GetWindowRect(hwnd, out r) ||
+                    !GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), ref mi)) return;
+                string line = string.Format(CultureInfo.InvariantCulture,
+                    "{0:HH:mm:ss.fff} {1} screen={2}x{3} scale={4} rect={5},{6},{7},{8} state={9}",
+                    DateTime.Now, reason, mi.rcMonitor.right - mi.rcMonitor.left,
+                    mi.rcMonitor.bottom - mi.rcMonitor.top, DpiOf(hwnd),
+                    r.left, r.top, r.right, r.bottom, WindowState);
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "GSharpMinor-window-trace.log"),
+                    line + Environment.NewLine);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
 
         void QueueDisplayUpdate()
         {
@@ -795,6 +864,7 @@ namespace Pa1.App
         {
             var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
             if (hwnd == IntPtr.Zero) return;
+            if (_traceWindow) TraceWindow(hwnd, "display-layout");
             if (WindowState == WindowState.Minimized)
             {
                 _fitOnRestore = true;
@@ -901,6 +971,7 @@ namespace Pa1.App
             e.Handled = true;
             if (e.ClickCount == 2) { ToggleMaximize(); return; }
             if (WindowState == WindowState.Maximized) return;
+            if (_traceWindow) TraceWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle, "title-drag");
             try { DragMove(); } catch (InvalidOperationException) { }
         }
 
