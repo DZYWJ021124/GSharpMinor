@@ -749,10 +749,20 @@ namespace Pa1.App
                     return new IntPtr(HTCLIENT);
 
                 int border = (int)Math.Ceiling(8 * DpiOf(hwnd));
-                return new IntPtr(ResizeHit(bounds, x, y, border));
+                int hit = ResizeHit(bounds, x, y, border);
+                if (_traceWindow && hit != _lastTraceHit)
+                {
+                    _lastTraceHit = hit;
+                    TraceWindow(hwnd, string.Format(CultureInfo.InvariantCulture,
+                        "nchit hit={0} mouse=({1},{2}) border={3} edgeL={4} edgeT={5}",
+                        hit, x, y, border, x - bounds.left, y - bounds.top));
+                }
+                return new IntPtr(hit);
             }
             if (msg == WM_DISPLAYCHANGE || msg == WM_DPICHANGED)
             {
+                if (_traceWindow) TraceWindow(hwnd,
+                    (msg == WM_DPICHANGED ? "WM_DPICHANGED dpi=" + (wParam.ToInt32() & 0xFFFF) : "WM_DISPLAYCHANGE"));
                 QueueDisplayUpdate(); // DPI 消息交给 WPF，待其处理建议矩形后再校正。
             }
             else if (msg == WM_GETMINMAXINFO)
@@ -769,6 +779,12 @@ namespace Pa1.App
                         mmi.ptMaxPosition.y = mi.rcWork.top - mi.rcMonitor.top;
                         mmi.ptMaxSize.x = mi.rcWork.right - mi.rcWork.left;
                         mmi.ptMaxSize.y = mi.rcWork.bottom - mi.rcWork.top;
+                        /* 关键：handled=true 会跳过 WPF 对 WM_GETMINMAXINFO 的默认处理，
+                           而默认处理负责填 ptMaxTrackSize。切换分辨率/跨屏后系统传入的
+                           ptMaxTrackSize 可能是 0 → 窗口拖动上限被锁成 0，表现为"放大有上限、
+                           四方向都拖不动"。必须显式填成工作区物理尺寸。 */
+                        mmi.ptMaxTrackSize.x = mi.rcWork.right - mi.rcWork.left;
+                        mmi.ptMaxTrackSize.y = mi.rcWork.bottom - mi.rcWork.top;
                         /* 最小拖放尺寸 = 内容下限（DIP）× 当前窗口 DPI（ptMinTrackSize 是物理像素） */
                         double dpi = DpiOf(hwnd);
                         double minW, minH;
@@ -776,6 +792,10 @@ namespace Pa1.App
                                        (mi.rcWork.bottom - mi.rcWork.top) / dpi, out minW, out minH);
                         mmi.ptMinTrackSize.x = (int)Math.Round(minW * dpi);
                         mmi.ptMinTrackSize.y = (int)Math.Round(minH * dpi);
+                        if (_traceWindow) TraceWindow(hwnd, string.Format(CultureInfo.InvariantCulture,
+                            "GETMINMAXINFO min={0}x{1} maxTrack_set={2}x{3}",
+                            mmi.ptMinTrackSize.x, mmi.ptMinTrackSize.y,
+                            mmi.ptMaxTrackSize.x, mmi.ptMaxTrackSize.y));
                         System.Runtime.InteropServices.Marshal.StructureToPtr(mmi, lParam, true);
                         handled = true;
                     }
@@ -830,6 +850,7 @@ namespace Pa1.App
         bool _displayUpdateQueued;
         bool _fitOnRestore;
         readonly bool _traceWindow = Environment.GetCommandLineArgs().Contains("--window-trace");
+        int _lastTraceHit = int.MinValue;   /* 诊断：hit 值变化才记，避免刷屏 */
 
         void TraceWindow(IntPtr hwnd, string reason)
         {
@@ -839,11 +860,15 @@ namespace Pa1.App
                 var mi = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MONITORINFO)) };
                 if (!GetWindowRect(hwnd, out r) ||
                     !GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), ref mi)) return;
+                double dpi = DpiOf(hwnd);
+                /* 关键诊断：Win32 物理矩形 vs WPF 的 DIP 属性（含 DPI 换算后的期望物理值）。
+                   若两者对不上，正是"边缘命中被误判/拖边缘变成拖窗口"的根因。 */
                 string line = string.Format(CultureInfo.InvariantCulture,
-                    "{0:HH:mm:ss.fff} {1} screen={2}x{3} scale={4} rect={5},{6},{7},{8} state={9}",
+                    "{0:HH:mm:ss.fff} {1} screen={2}x{3} scale={4} phys=({5},{6},{7},{8}) wpfDIP=({9:F1},{10:F1},{11:F1},{12:F1}) expectPhys={13:F0}x{14:F0} state={15}",
                     DateTime.Now, reason, mi.rcMonitor.right - mi.rcMonitor.left,
-                    mi.rcMonitor.bottom - mi.rcMonitor.top, DpiOf(hwnd),
-                    r.left, r.top, r.right, r.bottom, WindowState);
+                    mi.rcMonitor.bottom - mi.rcMonitor.top, dpi,
+                    r.left, r.top, r.right, r.bottom,
+                    Left, Top, Width, Height, Width * dpi, Height * dpi, WindowState);
                 File.AppendAllText(Path.Combine(Path.GetTempPath(), "GSharpMinor-window-trace.log"),
                     line + Environment.NewLine);
             }
@@ -892,6 +917,9 @@ namespace Pa1.App
             if (!_fitOnRestore)
                 target = FitNormalBounds(current, area, (int)Math.Round(minW * dpi), (int)Math.Round(minH * dpi));
 
+            if (_traceWindow) TraceWindow(hwnd, string.Format(CultureInfo.InvariantCulture,
+                "refit target=({0},{1},{2},{3}) wpfMin={4:F0}x{5:F0}",
+                target.left, target.top, target.right, target.bottom, minW, minH));
             if (current.left != target.left || current.top != target.top ||
                 current.right != target.right || current.bottom != target.bottom)
                 SetWindowPos(hwnd, IntPtr.Zero, target.left, target.top,
