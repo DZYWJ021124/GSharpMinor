@@ -311,8 +311,10 @@ namespace Pa1.App
             /* 窗口图标（任务栏/Alt-Tab）随主题：Dark=黑金谱号 / Light=米绿谱号 */
             if (_iconDark == null)
             {
-                _iconDark = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-dark.png"));
-                _iconLight = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-light.png"));
+                /* 窗口图标用 1024px 裁切版：Windows 缩到任务栏尺寸时源像素更多、更清晰；
+                   .ico（EXE 静态图标）仍用 256 多档——ICO 条目上限就是 256。 */
+                _iconDark = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-dark-hi.png"));
+                _iconLight = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-light-hi.png"));
             }
             Icon = ReferenceEquals(T, ThemePal.Dark) ? _iconDark : _iconLight;
         }
