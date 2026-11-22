@@ -779,10 +779,9 @@ namespace Pa1.App
                         mmi.ptMaxPosition.y = mi.rcWork.top - mi.rcMonitor.top;
                         mmi.ptMaxSize.x = mi.rcWork.right - mi.rcWork.left;
                         mmi.ptMaxSize.y = mi.rcWork.bottom - mi.rcWork.top;
-                        /* 关键：handled=true 会跳过 WPF 对 WM_GETMINMAXINFO 的默认处理，
-                           而默认处理负责填 ptMaxTrackSize。切换分辨率/跨屏后系统传入的
-                           ptMaxTrackSize 可能是 0 → 窗口拖动上限被锁成 0，表现为"放大有上限、
-                           四方向都拖不动"。必须显式填成工作区物理尺寸。 */
+                        /* 显式填成工作区物理尺寸：最大化矩形 = 工作区（不盖任务栏），
+                           同时给拖动/缩放一个明确上限（此前 ptMaxTrackSize 为 0 时，
+                           表现为"放大有上限、四方向都拖不动"）。 */
                         mmi.ptMaxTrackSize.x = mi.rcWork.right - mi.rcWork.left;
                         mmi.ptMaxTrackSize.y = mi.rcWork.bottom - mi.rcWork.top;
                         /* 最小拖放尺寸 = 内容下限（DIP）× 当前窗口 DPI（ptMinTrackSize 是物理像素） */
@@ -797,7 +796,13 @@ namespace Pa1.App
                             mmi.ptMinTrackSize.x, mmi.ptMinTrackSize.y,
                             mmi.ptMaxTrackSize.x, mmi.ptMaxTrackSize.y));
                         System.Runtime.InteropServices.Marshal.StructureToPtr(mmi, lParam, true);
-                        handled = true;
+                        /* 关键：从钩子里返回 handled=true 会跳过 DefWindowProc，user32 对窗口
+                           DPI 感知 max-tracking 状态的刷新也就不会发生——它会停留在启动时的
+                           DPI（如 1940x1100 设备像素 @96dpi）；之后分辨率/DPI 切换，WPF 布局
+                           仍被裁到旧值（外框变大、内容只占左上角、其余透明）。这里保留
+                           handled=false，让 DefWindowProc 照常参与派发以刷新跟踪状态；上面刚
+                           写入的值仍被保留（已本地验证：最大化仍精确填充工作区 3840x2064）。 */
+                        handled = false;
                     }
                 }
             }
