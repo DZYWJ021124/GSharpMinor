@@ -32,10 +32,12 @@
   </ItemGroup>
 
   <!-- 主题应用图标（Dark=黑金谱号 / Light=米绿谱号）：窗口图标随主题切换；app.ico 为 EXE 静态图标。
-       icon-dark/light.png（256，README 配图用）不进包体——代码只读 -hi 版，内嵌一份白占 132KB。 -->
+       窗口图标用多尺寸 ICO（16…256）而非大 PNG：运行时按 DPI 挑帧、WM_SETICON 下发，
+       系统不必从一张大图缩到 48px（那才是任务栏发糊的原因）；顺带比 PNG 省 1.4MB。
+       icon-dark/light.png（256，README 配图用）不进包体——代码不读它们。 -->
   <ItemGroup>
-    <Resource Include="Assets\icon-dark-hi.png" />
-    <Resource Include="Assets\icon-light-hi.png" />
+    <Resource Include="Assets\icon-dark.ico" />
+    <Resource Include="Assets\icon-light.ico" />
     <Resource Include="Assets\app.ico" />
   </ItemGroup>
 

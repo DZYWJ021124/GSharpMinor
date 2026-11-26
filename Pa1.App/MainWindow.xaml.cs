@@ -29,7 +29,7 @@ namespace Pa1.App
         bool _restorePending;       /* 曲库恢复读标签中：此刻落盘会把未恢复完的列表冲掉 */
         bool _scrubbing;
         bool _initDone;
-        BitmapFrame _iconDark, _iconLight;   /* 主题窗口图标（pack Resource，缓存避免每次换肤重解码） */
+        IntPtr _hwnd;               /* 窗口句柄（SourceInitialized 后有效）：WM_SETICON 等原生消息用 */
         int _mixRate, _mixBits;
         DateTime _mixT = DateTime.MinValue;
         double[] _lo, _hi, _fc;
@@ -65,11 +65,12 @@ namespace Pa1.App
                并禁用 Win11 DWM 自动圆角——否则组合器的圆弧裁剪会盖掉 squircle 连续曲率角 */
             SourceInitialized += (ss, ee) =>
             {
-                var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-                var src = System.Windows.Interop.HwndSource.FromHwnd(hwnd);
+                _hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                var src = System.Windows.Interop.HwndSource.FromHwnd(_hwnd);
                 if (src != null) src.AddHook(WindowMessageHook);
+                ApplyWindowIcon();          /* 句柄就绪后才会真正下发 HICON */
                 int pref = 1;   /* DWMWCP_DONOTROUND */
-                int hr = DwmSetWindowAttribute(hwnd, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, ref pref, 4);
+                int hr = DwmSetWindowAttribute(_hwnd, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, ref pref, 4);
                 QueueDisplayUpdate();
                 try
                 {
@@ -79,7 +80,8 @@ namespace Pa1.App
                 catch { }
             };
 
-            DpiChanged += (ss, ee) => QueueDisplayUpdate();
+            /* 换屏/改缩放后任务栏要的像素尺寸变了 → 重新挑 ICO 帧下发 */
+            DpiChanged += (ss, ee) => { QueueDisplayUpdate(); ApplyWindowIcon(); };
 
             /* 排序下拉用字符串 Items（与 DevCombo 设备列表同路） */
             SortCombo.ItemsSource = new[]
@@ -308,15 +310,17 @@ namespace Pa1.App
             g.GradientStops.Add(new GradientStop(T.WPhos, 0.72));
             g.GradientStops.Add(new GradientStop(T.WAmber, 1));
             MeterFill.Fill = g;
-            /* 窗口图标（任务栏/Alt-Tab）随主题：Dark=黑金谱号 / Light=米绿谱号 */
-            if (_iconDark == null)
-            {
-                /* 窗口图标用 1024px 裁切版：Windows 缩到任务栏尺寸时源像素更多、更清晰；
-                   .ico（EXE 静态图标）仍用 256 多档——ICO 条目上限就是 256。 */
-                _iconDark = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-dark-hi.png"));
-                _iconLight = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon-light-hi.png"));
-            }
-            Icon = ReferenceEquals(T, ThemePal.Dark) ? _iconDark : _iconLight;
+            /* 窗口图标（任务栏/Alt-Tab）随主题：Dark=黑金谱号 / Light=米绿谱号。
+               走 WindowIcon（多尺寸 ICO + WM_SETICON），不用 Window.Icon——后者会把 1024px
+               源图原尺寸做成 HICON，任务栏 48px 处一步缩下去反而发糊。 */
+            ApplyWindowIcon();
+        }
+
+        /// <summary>把当前主题的窗口图标发给系统。hwnd 未建立时（构造期）是空操作。</summary>
+        void ApplyWindowIcon()
+        {
+            if (_hwnd == IntPtr.Zero) return;
+            WindowIcon.Apply(_hwnd, ReferenceEquals(Theme.Cur, ThemePal.Dark));
         }
 
         void SetRes(string key, Color c)
