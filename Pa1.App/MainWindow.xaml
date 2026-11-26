@@ -629,19 +629,28 @@
       <!-- NOW PLAYING 卡片 -->
       <local:SquircleBorder Grid.Row="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
               BorderThickness="1" CornerRadius="5" Padding="20,16" Margin="0,0,0,16">
-        <DockPanel>
-          <StackPanel DockPanel.Dock="Left">
+        <!-- 两列 Grid（文字 * / 走带 Auto）：走带永远贴右且固定留位。
+             原 DockPanel 有两个毛病：默认 LastChildFill=True 时最后一个子元素吃掉整片
+             剩余空间（不管 Dock 在哪），横向 StackPanel 便从左排起 → 按钮贴着曲名；
+             改成 LastChildFill=False 能靠右，但长曲名会把左侧宽度吃满、把按钮挤出可视区。 -->
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0">
             <TextBlock Text="NOW PLAYING" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="8.5" Foreground="{DynamicResource MutedBrush}"
                        FontWeight="Bold"/>
             <TextBlock x:Name="NpNameB" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
-                       Foreground="{DynamicResource TextBrush}" FontWeight="Bold" Margin="0,5,0,0"/>
+                       Foreground="{DynamicResource TextBrush}" FontWeight="Bold" Margin="0,5,0,0"
+                       TextTrimming="CharacterEllipsis"/>
           </StackPanel>
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
             <Button Content="|◀" Click="BtnPrev_Click" Style="{StaticResource TxtBtn}"/>
             <Button x:Name="BtnPlayLibrary" Content="▶" Click="BtnPlay_Click" Style="{StaticResource PlayBtn}" Margin="8,0" Padding="18,9"/>
             <Button Content="▶|" Click="BtnNext_Click" Style="{StaticResource TxtBtn}"/>
           </StackPanel>
-        </DockPanel>
+        </Grid>
       </local:SquircleBorder>
 
       <Grid Grid.Row="1">
