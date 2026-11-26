@@ -74,8 +74,10 @@ light256.save(os.path.join(ASSETS, "icon-light.png"))
 
 # High-res variants for Window.Icon: more source pixels when Windows downsamples
 # to taskbar size. Still pre-cropped (no 20% empty margin) and fringe-cleaned.
-dark_hi = fit_ink(dark_raw, canvas=1024)
-light_hi = fit_ink(light_raw, canvas=1024)
+# 512 而非 1024：窗口图标实际最大用到 256px（200% DPI 的 Alt-Tab），
+# 1024 版单张 970KB、解码后常驻 4MB 位图，对画质无可见收益而白占包体。
+dark_hi = fit_ink(dark_raw, canvas=512)
+light_hi = fit_ink(light_raw, canvas=512)
 dark_hi.save(os.path.join(ASSETS, "icon-dark-hi.png"))
 light_hi.save(os.path.join(ASSETS, "icon-light-hi.png"))
 
@@ -86,4 +88,4 @@ ico_frames = [unpremultiply(base_pm.resize((s, s), Image.LANCZOS)) for s in size
 ico_frames[0].save(os.path.join(ASSETS, "app.ico"), format="ICO",
                    sizes=[(s, s) for s in sizes])
 
-print("generated icon-dark.png / icon-light.png / app.ico from new RGBA sources")
+print("generated icon-dark/light (256) + icon-*-hi (512) + app.ico from RGBA sources")

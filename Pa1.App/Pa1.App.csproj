@@ -10,7 +10,11 @@
     <RootNamespace>Pa1.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Prefer32Bit>false</Prefer32Bit>
+    <!-- 位数显式写死：net48 + WinExe 在 SDK 里的默认 PlatformTarget 就是 x86，本工程历次发布
+         的 exe（含 1.1.0 的 dist）也确实是 32 位进程。以前只写 Prefer32Bit=false 并不能改变这点
+         （PlatformTarget 已定 x86，该属性无效），结果是白白内嵌了永远用不到的 x64 原生库。
+         改为 x64 时无需其他改动：原生库打包与运行时都按目标平台自动挑。 -->
+    <PlatformTarget>x86</PlatformTarget>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 
@@ -27,10 +31,9 @@
     <ProjectReference Include="..\Pa1.Core\Pa1.Core.csproj" />
   </ItemGroup>
 
-  <!-- 主题应用图标（Dark=黑金谱号 / Light=米绿谱号）：窗口图标随主题切换；app.ico 为 EXE 静态图标 -->
+  <!-- 主题应用图标（Dark=黑金谱号 / Light=米绿谱号）：窗口图标随主题切换；app.ico 为 EXE 静态图标。
+       icon-dark/light.png（256，README 配图用）不进包体——代码只读 -hi 版，内嵌一份白占 132KB。 -->
   <ItemGroup>
-    <Resource Include="Assets\icon-dark.png" />
-    <Resource Include="Assets\icon-light.png" />
     <Resource Include="Assets\icon-dark-hi.png" />
     <Resource Include="Assets\icon-light-hi.png" />
     <Resource Include="Assets\app.ico" />
@@ -43,10 +46,59 @@
     <Resource Include="Assets\Fonts\OFL.txt" />
   </ItemGroup>
 
-  <!-- SkiaSharp 原生库内嵌：单文件 exe 自带，启动时 NativeSkia 抽出并 LoadLibrary -->
+  <!-- SkiaSharp 原生库内嵌（构建时 Deflate 压缩）：只嵌目标平台那一份，压后约 3.7MB。
+       原始两份合计 17.4MB，曾长期是单文件 exe 体积的主要来源——其中一份永远用不到。
+       构建由 _PackNativeSkia 生成 obj\native\*.deflate，运行时 NativeSkia 解压到
+       %LOCALAPPDATA%\GSharpMinor\libSkiaSharp.dll 再 LoadLibrary。 -->
+  <PropertyGroup>
+    <_SkiaNativeArch Condition="'$(PlatformTarget)' == 'x86'">x86</_SkiaNativeArch>
+    <_SkiaNativeArch Condition="'$(PlatformTarget)' == 'x64'">x64</_SkiaNativeArch>
+    <_SkiaNativeArch Condition="'$(_SkiaNativeArch)' == '' and '$(Prefer32Bit)' == 'true'">x86</_SkiaNativeArch>
+    <_SkiaNativeArch Condition="'$(_SkiaNativeArch)' == ''">x64</_SkiaNativeArch>
+  </PropertyGroup>
+
   <ItemGroup>
-    <EmbeddedResource Include="native\libSkiaSharp-x64.dll" LogicalName="Pa1.App.native.libSkiaSharp-x64.dll" />
-    <EmbeddedResource Include="native\libSkiaSharp-x86.dll" LogicalName="Pa1.App.native.libSkiaSharp-x86.dll" />
+    <SkiaNativeSrc Include="native\libSkiaSharp-$(_SkiaNativeArch).dll" />
   </ItemGroup>
+
+  <!-- 内联压缩任务：无需外部工具，dotnet build 与 Visual Studio 一致。已是最新则跳过（按时间戳）。 -->
+  <UsingTask TaskName="DeflateFile" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Input ParameterType="System.String" Required="true" />
+      <Output ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.IO.Compression" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var srcInfo = new FileInfo(Input);
+        var dstInfo = new FileInfo(Output);
+        bool fresh = dstInfo.Exists && dstInfo.LastWriteTimeUtc >= srcInfo.LastWriteTimeUtc;
+        if (!fresh)
+        {
+            Directory.CreateDirectory(dstInfo.DirectoryName);
+            using (var src = File.OpenRead(Input))
+            using (var dst = File.Create(Output))
+            using (var zip = new DeflateStream(dst, CompressionLevel.Optimal))
+            {
+                src.CopyTo(zip);
+            }
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!-- 挂 AssignTargetPaths 而非 PrepareResources：BeforeTargets 的钩子在目标自己的
+       DependsOnTargets 跑完之后才执行，而资源清单在 AssignTargetPaths 就已定格，
+       挂晚了新增的 EmbeddedResource 会被静默丢掉（包体回退到未压缩状态）。 -->
+  <Target Name="_PackNativeSkia" BeforeTargets="AssignTargetPaths">
+    <DeflateFile Input="%(SkiaNativeSrc.FullPath)"
+                 Output="$(IntermediateOutputPath)native\%(SkiaNativeSrc.Filename)%(SkiaNativeSrc.Extension).deflate" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(IntermediateOutputPath)native\libSkiaSharp-$(_SkiaNativeArch).dll.deflate"
+                        LogicalName="Pa1.App.native.libSkiaSharp-$(_SkiaNativeArch).dll.deflate" />
+    </ItemGroup>
+  </Target>
 
 </Project>
