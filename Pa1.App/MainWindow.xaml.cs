@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -496,6 +497,52 @@ namespace Pa1.App
             return (m.Artist + " — " + m.Title + "  ·  " + sp).Trim(' ', '·');
         }
 
+        /* ════════ 曲名轮播（曲库页 NOW PLAYING）：超长时横向滚动，替代省略号 ════════ */
+        string _marqueeText;
+        double _marqueeAvail = -1;
+
+        void NpNameClip_SizeChanged(object s, SizeChangedEventArgs e) { UpdateNpMarquee(); }
+
+        /// <summary>按当前文本与裁切宽度决定：放得下静止；放不下匀速滚到末尾、停顿、回卷，如此循环。
+        /// 文本与宽度都没变时不重启动画（SyncUI 会被频繁调用，否则每次播放/暂停都从头滚）。</summary>
+        void UpdateNpMarquee(bool force = false)
+        {
+            if (NpNameB == null || NpNameShift == null || NpNameClip == null) return;
+            string text = NpNameB.Text ?? "";
+            double avail = NpNameClip.ActualWidth;
+            if (avail <= 1) return;                       /* 还没布局（页面折叠中）→ SizeChanged 会再来 */
+            if (!force && text == _marqueeText && Math.Abs(avail - _marqueeAvail) < 0.5) return;
+            _marqueeText = text;
+            _marqueeAvail = avail;
+
+            NpNameShift.BeginAnimation(TranslateTransform.XProperty, null);
+            NpNameShift.X = 0;
+            double textW = MeasureTextWidth(NpNameB, text);
+            if (textW <= avail + 0.5) return;             /* 放得下：不滚 */
+
+            double dist = textW - avail + 24;             /* 末尾多留 24px 空隙再回卷 */
+            double secs = Math.Max(2.5, dist / 45.0);     /* 约 45 逻辑像素/秒，长标题也不会太快 */
+            var anim = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+            void K(double at, double x) { anim.KeyFrames.Add(new LinearDoubleKeyFrame(x, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(at)))); }
+            K(0, 0);                                      /* 静止 1.4s 让人读开头 */
+            K(1.4, 0);
+            K(1.4 + secs, -dist);
+            K(1.4 + secs + 1.2, -dist);                   /* 末尾停顿 1.2s */
+            K(1.4 + secs + 1.45, 0);                      /* 快速回卷后循环 */
+            NpNameShift.BeginAnimation(TranslateTransform.XProperty, anim);
+        }
+
+        /// <summary>按 TextBlock 当前字体精确量文本宽度（TextFormattingMode 与窗口一致，避免量出来偏宽/偏窄）。</summary>
+        static double MeasureTextWidth(TextBlock proto, string text)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+            var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+                new Typeface(proto.FontFamily, proto.FontStyle, proto.FontWeight, proto.FontStretch),
+                proto.FontSize, Brushes.Black, null, TextFormattingMode.Display,
+                VisualTreeHelper.GetDpi(proto).PixelsPerDip);
+            return ft.WidthIncludingTrailingWhitespace;
+        }
+
         /* ════════ UI 同步 ════════ */
         void SyncUI()
         {
@@ -503,6 +550,7 @@ namespace Pa1.App
             PageA.Background = Brushes.Transparent;
             NpName.Text = _eng.Meta != null ? _eng.Meta.Title : "— NO DISC —";
             NpNameB.Text = NpName.Text;
+            UpdateNpMarquee();
             NpSub.Text = MetaText();
             bool playing = _eng.IsPlaying;
             BtnPlay.Content = playing ? "❚❚ Pause" : "▶ Play";
@@ -650,6 +698,7 @@ namespace Pa1.App
                 NpName.Text = _rows[_pl.CurIdx].Title;
                 NpNameB.Text = NpName.Text;
                 TrackList.SelectedIndex = _pl.CurIdx;
+                UpdateNpMarquee();
             }
         }
 

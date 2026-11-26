@@ -641,11 +641,19 @@
           <StackPanel Grid.Column="0">
             <TextBlock Text="NOW PLAYING" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="8.5" Foreground="{DynamicResource MutedBrush}"
                        FontWeight="Bold"/>
-            <TextBlock x:Name="NpNameB" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
-                       Foreground="{DynamicResource TextBrush}" FontWeight="Bold" Margin="0,5,0,0"
-                       TextTrimming="CharacterEllipsis"/>
+            <!-- 曲名：放得下就静止，放不下则由 UpdateNpMarquee 匀速轮播（ClipToBounds 裁掉溢出）。
+                 裁切区宽度 = 列宽，右侧留白由走带那个 Margin 控制 -->
+            <Grid x:Name="NpNameClip" ClipToBounds="True" Margin="0,5,0,0" SizeChanged="NpNameClip_SizeChanged">
+              <TextBlock x:Name="NpNameB" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
+                         Foreground="{DynamicResource TextBrush}" FontWeight="Bold" TextWrapping="NoWrap"
+                         HorizontalAlignment="Left">
+                <TextBlock.RenderTransform>
+                  <TranslateTransform x:Name="NpNameShift" X="0"/>
+                </TextBlock.RenderTransform>
+              </TextBlock>
+            </Grid>
           </StackPanel>
-          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
             <Button Content="|◀" Click="BtnPrev_Click" Style="{StaticResource TxtBtn}"/>
             <Button x:Name="BtnPlayLibrary" Content="▶" Click="BtnPlay_Click" Style="{StaticResource PlayBtn}" Margin="8,0" Padding="18,9"/>
             <Button Content="▶|" Click="BtnNext_Click" Style="{StaticResource TxtBtn}"/>
