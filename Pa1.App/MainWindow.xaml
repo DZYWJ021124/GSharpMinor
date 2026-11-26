@@ -642,15 +642,24 @@
             <TextBlock Text="NOW PLAYING" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="8.5" Foreground="{DynamicResource MutedBrush}"
                        FontWeight="Bold"/>
             <!-- 曲名：放得下就静止，放不下则由 UpdateNpMarquee 匀速轮播（ClipToBounds 裁掉溢出）。
-                 裁切区宽度 = 列宽，右侧留白由走带那个 Margin 控制 -->
+                 轮播用「原文 + 副本」首尾相接：行程只取决于文本宽度（= 文本宽 + 词间距），
+                 与可见宽度无关——窗口怎么缩放都不会漏掉结尾（按「文本宽−可见宽」算行程时，
+                 只要有一次没按新宽度重算，尾部就再也滚不到）。 -->
             <Grid x:Name="NpNameClip" ClipToBounds="True" Margin="0,5,0,0" SizeChanged="NpNameClip_SizeChanged">
-              <TextBlock x:Name="NpNameB" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
-                         Foreground="{DynamicResource TextBrush}" FontWeight="Bold" TextWrapping="NoWrap"
-                         HorizontalAlignment="Left">
-                <TextBlock.RenderTransform>
+              <!-- 用 Canvas 而非 StackPanel 承载：StackPanel 的排布宽度会被父级钳到列宽，
+                   超出部分连同副本一起不渲染（实测文字到 490px 就断，而裁切区有 911px）。
+                   Canvas 的子元素按 Canvas.Left 定位、不受容器宽度约束，溢出由外层 ClipToBounds 裁。 -->
+              <Canvas x:Name="NpNameRun" HorizontalAlignment="Left" VerticalAlignment="Center"
+                      Height="{Binding ActualHeight, ElementName=NpNameB}">
+                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
+                           Foreground="{DynamicResource TextBrush}" FontWeight="Bold" TextWrapping="NoWrap"/>
+                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
+                           Foreground="{DynamicResource TextBrush}" FontWeight="Bold" TextWrapping="NoWrap"
+                           Visibility="Collapsed"/>
+                <Canvas.RenderTransform>
                   <TranslateTransform x:Name="NpNameShift" X="0"/>
-                </TextBlock.RenderTransform>
-              </TextBlock>
+                </Canvas.RenderTransform>
+              </Canvas>
             </Grid>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">

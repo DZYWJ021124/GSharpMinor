@@ -498,37 +498,52 @@ namespace Pa1.App
         }
 
         /* ════════ 曲名轮播（曲库页 NOW PLAYING）：超长时横向滚动，替代省略号 ════════ */
+        const double NpMarqueeGap = 48;     /* 原文与副本之间的词间距（也是循环接缝） */
+        const double NpMarqueeSpeed = 45;   /* 逻辑像素/秒 */
         string _marqueeText;
-        double _marqueeAvail = -1;
+        bool _marqueeOn;
 
         void NpNameClip_SizeChanged(object s, SizeChangedEventArgs e) { UpdateNpMarquee(); }
 
-        /// <summary>按当前文本与裁切宽度决定：放得下静止；放不下匀速滚到末尾、停顿、回卷，如此循环。
-        /// 文本与宽度都没变时不重启动画（SyncUI 会被频繁调用，否则每次播放/暂停都从头滚）。</summary>
-        void UpdateNpMarquee(bool force = false)
+        /// <summary>放得下静止；放不下把「原文 + 副本」首尾相接匀速滚动。
+        ///
+        /// 行程固定为「文本宽 + 词间距」，与可见宽度无关——这是关键：按「文本宽 − 可见宽」
+        /// 算行程时，缩减窗口只要有一次没按新宽度重算（拖动缩放期间 SizeChanged 会被合并、
+        /// 重算时宽度又变了），尾部就永远滚不到，表现为「显示不完全」。
+        /// 现在缩放只影响判定「是否需要滚」，不影响行程，漏算也不会丢内容。</summary>
+        void UpdateNpMarquee()
         {
             if (NpNameB == null || NpNameShift == null || NpNameClip == null) return;
             string text = NpNameB.Text ?? "";
+            if (NpNameBCopy.Text != text) NpNameBCopy.Text = text;   /* 副本与原文始终同文 */
             double avail = NpNameClip.ActualWidth;
             if (avail <= 1) return;                       /* 还没布局（页面折叠中）→ SizeChanged 会再来 */
-            if (!force && text == _marqueeText && Math.Abs(avail - _marqueeAvail) < 0.5) return;
+
+            double textW = MeasureTextWidth(NpNameB, text);
+            bool need = textW > avail + 0.5;
+            if (need == _marqueeOn && text == _marqueeText) return;   /* 状态未变：不重启动画 */
             _marqueeText = text;
-            _marqueeAvail = avail;
+            _marqueeOn = need;
 
             NpNameShift.BeginAnimation(TranslateTransform.XProperty, null);
             NpNameShift.X = 0;
-            double textW = MeasureTextWidth(NpNameB, text);
-            if (textW <= avail + 0.5) return;             /* 放得下：不滚 */
+            if (!need)
+            {
+                NpNameBCopy.Visibility = Visibility.Collapsed;        /* 放得下：隐藏副本，静止 */
+                return;
+            }
 
-            double dist = textW - avail + 24;             /* 末尾多留 24px 空隙再回卷 */
-            double secs = Math.Max(2.5, dist / 45.0);     /* 约 45 逻辑像素/秒，长标题也不会太快 */
+            double dist = textW + NpMarqueeGap;           /* 行程只取决于文本，与可见宽度无关 */
+            double secs = Math.Max(2.5, dist / NpMarqueeSpeed);
+            Canvas.SetLeft(NpNameBCopy, textW + NpMarqueeGap);   /* 副本接在原文之后 */
+            NpNameBCopy.Visibility = Visibility.Visible;          /* 构成无缝循环 */
             var anim = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
             void K(double at, double x) { anim.KeyFrames.Add(new LinearDoubleKeyFrame(x, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(at)))); }
-            K(0, 0);                                      /* 静止 1.4s 让人读开头 */
+            K(0, 0);                                      /* 开头停 1.4s 让人读标题 */
             K(1.4, 0);
-            K(1.4 + secs, -dist);
-            K(1.4 + secs + 1.2, -dist);                   /* 末尾停顿 1.2s */
-            K(1.4 + secs + 1.45, 0);                      /* 快速回卷后循环 */
+            K(1.4 + secs, -dist);                         /* 滚到副本顶到左缘＝视觉上回到开头 */
+            K(1.4 + secs + 1.2, -dist);                   /* 结尾停 1.2s，此刻画面与起点一致，回卷无跳变 */
+            K(1.4 + secs + 1.45, 0);
             NpNameShift.BeginAnimation(TranslateTransform.XProperty, anim);
         }
 
