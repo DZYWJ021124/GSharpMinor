@@ -1,3 +1,8 @@
+<!-- 文字抗锯齿用灰度（Grayscale），不用 ClearType：
+     ClearType 靠 RGB 次像素做横向超采样，代价是每个字形边缘都带一圈橙/蓝彩边。
+     宋体的 C、S 这类全曲线字符，每一像素列都在换次像素相位，彩边连成一片"锯齿"；
+     而 N、D、I 的竖直笔画对齐像素栅格，反而干净——所以只有 C、S 看着脏。
+     本机 4K@200%，15 DIP = 30 物理像素，横向分辨率早就够，灰度 AA 干净且无色边。 -->
 <Window x:Class="Pa1.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -7,7 +12,7 @@
         Background="{DynamicResource BgBrush}" AllowsTransparency="False" WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize" StateChanged="Win_StateChanged"
         FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
-        TextOptions.TextRenderingMode="ClearType"
+        TextOptions.TextRenderingMode="Grayscale"
         AllowDrop="True" DragOver="Win_DragOver" Drop="Win_Drop">
   <!-- 自绘窗口外观：无系统标题栏/边框；WindowChrome 保留原生缩放、贴边与最大化工作区行为。 -->
   <WindowChrome.WindowChrome>
