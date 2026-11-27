@@ -583,13 +583,15 @@ namespace Pa1.App
             NpNameShift.BeginAnimation(TranslateTransform.XProperty, anim);
         }
 
-        /// <summary>按 TextBlock 当前字体精确量文本宽度（TextFormattingMode 与窗口一致，避免量出来偏宽/偏窄）。</summary>
+        /// <summary>按 TextBlock 当前字体精确量文本宽度（TextFormattingMode 与窗口一致，避免量出来偏宽/偏窄）。
+        /// 模式必须从 TextBlock 上读，不能写死 Display：曲名走 Ideal（轮廓抗锯齿），
+        /// 两种模式的字宽不同，写死会让轮播行程比实际文本短/长，接缝处露出副本头或空档。</summary>
         static double MeasureTextWidth(TextBlock proto, string text)
         {
             if (string.IsNullOrEmpty(text)) return 0;
             var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
                 new Typeface(proto.FontFamily, proto.FontStyle, proto.FontWeight, proto.FontStretch),
-                proto.FontSize, Brushes.Black, null, TextFormattingMode.Display,
+                proto.FontSize, Brushes.Black, null, TextOptions.GetTextFormattingMode(proto),
                 VisualTreeHelper.GetDpi(proto).PixelsPerDip);
             return ft.WidthIncludingTrailingWhitespace;
         }

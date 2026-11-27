@@ -1,8 +1,9 @@
 Copyright © 2017-2023 Adobe (http://www.adobe.com/).
 
-This font is derived from two SIL Open Font License 1.1 works:/n  · Noto Serif SC / Source Han Serif SC (Chinese, kana, Latin)
+This font is derived from two SIL Open Font License 1.1 works:
+  · Noto Serif SC / Source Han Serif SC (Chinese, kana, Latin)
   · Noto Serif KR / Source Han Serif K  (Hangul syllable glyphs)
-It was instantiated at weight 600, subset to the glyphs the application
+Both sources were instantiated at weight 800 (ExtraBold), subset to the glyphs the application
 needs, and merged into one family renamed "Pa1 Serif SC" — OFL requires
 modified versions to avoid the Reserved Font Names.
 

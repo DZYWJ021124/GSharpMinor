@@ -14,11 +14,12 @@
 
 源文件：
   SC  C:/Windows/Fonts/NotoSerifSC-VF.ttf                       （SIL OFL 1.1, Adobe）
-  KR  Noto Serif KR 600：@expo-google-fonts/noto-serif-kr 的
-      600SemiBold/NotoSerifKR_600SemiBold.ttf                    （SIL OFL 1.1, Adobe）
+  KR  Noto Serif KR 800：@expo-google-fonts/noto-serif-kr 的
+      800ExtraBold/NotoSerifKR_800ExtraBold.ttf                  （SIL OFL 1.1, Adobe）
       可用 --kr 指定本地路径；文件不入库，需要时重新下载。
+      韩文必须与 SC 同字重，否则同一家族里谚文会比汉字瘦一档。
 
-用法：python scripts/make_font.py [--charset=uro|gb2312|level1] [--weight=700] [--kr=路径]
+用法：python scripts/make_font.py [--charset=uro|gb2312|level1] [--weight=800] [--kr=路径]
 """
 import argparse
 import os
@@ -33,11 +34,11 @@ from fontTools.merge import Merger
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SC_SRC = r"C:/Windows/Fonts/NotoSerifSC-VF.ttf"
-KR_SRC = os.path.join(ROOT, ".m", "NotoSerifKR-600.ttf")   # 下载物，不入库
+KR_SRC = os.path.join(ROOT, ".m", "NotoSerifKR-800.ttf")   # 下载物，不入库
 OUT_DIR = os.path.join(ROOT, "Pa1.App", "Assets", "Fonts")
 OUT = os.path.join(OUT_DIR, "Pa1SerifSC.ttf")
 FAMILY = "Pa1 Serif SC"
-WEIGHT = 700
+WEIGHT = 800
 
 
 def gb2312_chars(level1_only=False):
@@ -115,7 +116,7 @@ def rename(font):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--charset", default="uro", choices=["uro", "gb2312", "level1"])
-    ap.add_argument("--weight", type=int, default=700)
+    ap.add_argument("--weight", type=int, default=800)
     ap.add_argument("--kr", default=KR_SRC)
     ap.add_argument("--out", default=OUT)
     args = ap.parse_args()

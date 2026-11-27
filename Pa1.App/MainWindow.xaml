@@ -541,7 +541,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
-                <TextBlock x:Name="NpName" Text="— NO DISC —" FontSize="18"
+                <TextBlock x:Name="NpName" Text="— NO DISC —" FontSize="20"
+                           TextOptions.TextFormattingMode="Ideal"
                            Foreground="{DynamicResource TextBrush}"/>
                 <TextBlock x:Name="NpSub" Text="G# minor · AWAITING SIGNAL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI"
                            FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" Margin="0,6,0,0"/>
@@ -663,9 +664,11 @@
                    Canvas 的子元素按 Canvas.Left 定位、不受容器宽度约束，溢出由外层 ClipToBounds 裁。 -->
               <Canvas x:Name="NpNameRun" HorizontalAlignment="Left" VerticalAlignment="Center"
                       Height="{Binding ActualHeight, ElementName=NpNameB}">
-                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontSize="15"
+                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontSize="17"
+                           TextOptions.TextFormattingMode="Ideal"
                            Foreground="{DynamicResource TextBrush}" TextWrapping="NoWrap"/>
-                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontSize="15"
+                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontSize="17"
+                           TextOptions.TextFormattingMode="Ideal"
                            Foreground="{DynamicResource TextBrush}" TextWrapping="NoWrap"
                            Visibility="Collapsed"/>
                 <Canvas.RenderTransform>
