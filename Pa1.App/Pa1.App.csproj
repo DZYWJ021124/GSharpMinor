@@ -41,11 +41,19 @@
     <Resource Include="Assets\app.ico" />
   </ItemGroup>
 
-  <!-- 标题字体 Cormorant Garamond Italic（google/fonts 可变字体经 fontTools 实例化 wght 400/700 静态面） -->
+  <!-- 品牌字 Cormorant Garamond Italic（google/fonts 可变字体经 fontTools 实例化 wght 400/700 静态面） -->
   <ItemGroup>
     <Resource Include="Assets\Fonts\CormorantGaramond-Italic.ttf" />
     <Resource Include="Assets\Fonts\CormorantGaramond-BoldItalic.ttf" />
     <Resource Include="Assets\Fonts\OFL.txt" />
+  </ItemGroup>
+
+  <!-- 阅读面字体 Pa1 Serif SC：由系统 Noto Serif SC 可变字体经 scripts/make_font.py 生成，
+       wght 600 静态实例 + 拉丁 + GB2312 子集（7721 字形，2.97MB）。
+       不直接用系统那份 VF：它的默认实例是 wght=200，而 WPF(net48) 不能选变量轴。 -->
+  <ItemGroup>
+    <Resource Include="Assets\Fonts\Pa1SerifSC.ttf" />
+    <Resource Include="Assets\Fonts\OFL-Pa1SerifSC.txt" />
   </ItemGroup>
 
   <!-- SkiaSharp 原生库内嵌（构建时 Deflate 压缩）：只嵌目标平台那一份，压后约 3.7MB。

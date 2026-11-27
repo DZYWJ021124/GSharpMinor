@@ -58,13 +58,13 @@
       </Setter>
     </Style>
 
-    <!-- ══ 展示字体：曲名 / 标题用 Cormorant Garamond ══
-         仓库里只有 Italic 与 BoldItalic 两档（无正体），所以：
-         · 曲名沿用乐谱、唱片内页里「作品名用斜体」的惯例，不算权宜；
-         · FontWeight 必须显式写 Bold 且 FontStyle 必须显式写 Italic——只给 Bold 不给 Italic 时，
-           WPF 会拿斜体那一档合成假粗，笔画会糊；
-         · Cormorant 无 CJK：中文曲名自动逐字回退到第二字体（微软雅黑），不会出现豆腐块。 -->
-    <FontFamily x:Key="DisplayFont">/GSharpMinor;component/Assets/Fonts/#Cormorant Garamond</FontFamily>
+    <!-- ══ 阅读面字体：曲名 / 标题用 Pa1 Serif SC ══
+         本体是 Noto Serif SC（思源宋体，OFL），经 scripts/make_font.py 固定为 wght 500、
+         子集到 GB2312 + 拉丁并改名——所以它同时有正体、有汉字、有拉丁，一行中英混排
+         不会出现「斜拉丁 + 直立汉字」的断裂，也不需要任何合成斜切。
+         家族名故意不叫 Noto Serif SC：避免与系统安装的同名可变字体撞名（那份默认 wght=200）。
+         缺字（GB2312 外的生僻字、emoji）由 WPF 逐字回退到第二字体，不会出豆腐块。 -->
+    <FontFamily x:Key="DisplayFont">/GSharpMinor;component/Assets/Fonts/#Pa1 Serif SC</FontFamily>
 
     <!-- ══ 常规按钮 ══ -->
     <Style x:Key="TxtBtn" TargetType="Button">
@@ -537,8 +537,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
-                <TextBlock x:Name="NpName" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="18"
-                           Foreground="{DynamicResource TextBrush}" FontWeight="Bold"/>
+                <TextBlock x:Name="NpName" Text="— NO DISC —" FontFamily="{StaticResource DisplayFont}" FontSize="18"
+                           Foreground="{DynamicResource TextBrush}"/>
                 <TextBlock x:Name="NpSub" Text="G# minor · AWAITING SIGNAL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI"
                            FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" Margin="0,6,0,0"/>
               </StackPanel>
@@ -659,10 +659,10 @@
                    Canvas 的子元素按 Canvas.Left 定位、不受容器宽度约束，溢出由外层 ClipToBounds 裁。 -->
               <Canvas x:Name="NpNameRun" HorizontalAlignment="Left" VerticalAlignment="Center"
                       Height="{Binding ActualHeight, ElementName=NpNameB}">
-                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
-                           Foreground="{DynamicResource TextBrush}" FontWeight="Bold" TextWrapping="NoWrap"/>
-                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
-                           Foreground="{DynamicResource TextBrush}" FontWeight="Bold" TextWrapping="NoWrap"
+                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                           Foreground="{DynamicResource TextBrush}" TextWrapping="NoWrap"/>
+                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                           Foreground="{DynamicResource TextBrush}" TextWrapping="NoWrap"
                            Visibility="Collapsed"/>
                 <Canvas.RenderTransform>
                   <TranslateTransform x:Name="NpNameShift" X="0"/>
