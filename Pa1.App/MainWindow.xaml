@@ -58,13 +58,8 @@
       </Setter>
     </Style>
 
-    <!-- ══ 阅读面字体：曲名 / 标题用 Pa1 Serif SC ══
-         本体是 Noto Serif SC（思源宋体，OFL），经 scripts/make_font.py 固定为 wght 500、
-         子集到 GB2312 + 拉丁并改名——所以它同时有正体、有汉字、有拉丁，一行中英混排
-         不会出现「斜拉丁 + 直立汉字」的断裂，也不需要任何合成斜切。
-         家族名故意不叫 Noto Serif SC：避免与系统安装的同名可变字体撞名（那份默认 wght=200）。
-         缺字（GB2312 外的生僻字、emoji）由 WPF 逐字回退到第二字体，不会出豆腐块。 -->
-    <FontFamily x:Key="DisplayFont">/GSharpMinor;component/Assets/Fonts/#Pa1 Serif SC</FontFamily>
+    <!-- 曲名字体（Pa1 Serif SC）不再走 pack:// 资源：字库 22MB，需构建期压缩、运行时解压，
+         见 TitleFont.cs。XAML 这里只留默认字体作为兜底，构造函数里再换成解压后的字族。 -->
 
     <!-- ══ 常规按钮 ══ -->
     <Style x:Key="TxtBtn" TargetType="Button">
@@ -537,7 +532,7 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
-                <TextBlock x:Name="NpName" Text="— NO DISC —" FontFamily="{StaticResource DisplayFont}" FontSize="18"
+                <TextBlock x:Name="NpName" Text="— NO DISC —" FontSize="18"
                            Foreground="{DynamicResource TextBrush}"/>
                 <TextBlock x:Name="NpSub" Text="G# minor · AWAITING SIGNAL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI"
                            FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" Margin="0,6,0,0"/>
@@ -659,9 +654,9 @@
                    Canvas 的子元素按 Canvas.Left 定位、不受容器宽度约束，溢出由外层 ClipToBounds 裁。 -->
               <Canvas x:Name="NpNameRun" HorizontalAlignment="Left" VerticalAlignment="Center"
                       Height="{Binding ActualHeight, ElementName=NpNameB}">
-                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontSize="15"
                            Foreground="{DynamicResource TextBrush}" TextWrapping="NoWrap"/>
-                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontFamily="{StaticResource DisplayFont}" FontSize="15"
+                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontSize="15"
                            Foreground="{DynamicResource TextBrush}" TextWrapping="NoWrap"
                            Visibility="Collapsed"/>
                 <Canvas.RenderTransform>

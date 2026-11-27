@@ -62,6 +62,9 @@ namespace Pa1.App
 
             InitializeComponent();
 
+            /* 曲名字体：22MB 字库经构建期 Deflate 内嵌，这里解压并挂载（失败则保持默认字体） */
+            ApplyTitleFont();
+
             /* 透明无边框窗口的最大化需要约束到工作区（否则盖住任务栏）；
                并禁用 Win11 DWM 自动圆角——否则组合器的圆弧裁剪会盖掉 squircle 连续曲率角 */
             SourceInitialized += (ss, ee) =>
@@ -495,6 +498,17 @@ namespace Pa1.App
             var m = _eng.Meta;
             var sp = m.Spec != null ? FormatProbe.SpecLabel(m.Spec) : "";
             return (m.Artist + " — " + m.Title + "  ·  " + sp).Trim(' ', '·');
+        }
+
+        /// <summary>把解压出来的曲名字体挂到三处曲名上（原文、副本、分析仪页）。
+        /// 取不到就保持 XAML 的默认等宽字体，不影响启动。</summary>
+        void ApplyTitleFont()
+        {
+            var ff = TitleFont.Family;
+            if (ff == null) return;
+            NpName.FontFamily = ff;
+            NpNameB.FontFamily = ff;
+            NpNameBCopy.FontFamily = ff;
         }
 
         /// <summary>曲名的唯一写入口：文本与轮播必须同步更新，

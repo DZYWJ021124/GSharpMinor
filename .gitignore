@@ -5,3 +5,6 @@ dist/
 *.user
 *.suo
 certs/
+
+# 字体构建中间产物（Noto Serif KR 源文件，可由 scripts/make_font.py 说明中的地址重新下载）
+.m/
