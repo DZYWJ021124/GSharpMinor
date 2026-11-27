@@ -4,9 +4,10 @@
         xmlns:local="clr-namespace:Pa1.App"
         Title="G# minor · Spectrum Analyzer" Height="820" Width="1180"
         MinHeight="620" MinWidth="900"
-        Background="Transparent" AllowsTransparency="True" WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgBrush}" AllowsTransparency="False" WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize" StateChanged="Win_StateChanged"
         FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
         AllowDrop="True" DragOver="Win_DragOver" Drop="Win_Drop">
   <!-- 自绘窗口外观：无系统标题栏/边框；WindowChrome 保留原生缩放、贴边与最大化工作区行为。 -->
   <WindowChrome.WindowChrome>
@@ -407,6 +408,9 @@
 
   <!-- 窗口壳：透明 HWND + 超椭圆背景容器（连续曲率圆角；最大化时 Win_StateChanged 置 0）。
        WinBg 作为根容器包裹全部内容：背景铺满整窗，内容在内层 Grid 三行布局。 -->
+  <!-- 窗口不透明（AllowsTransparency=False）：分层窗口下系统不提供 ClearType，文字只能用
+       灰度抗锯齿，4K 屏上明显发虚。代价是圆角改由 DWM 绘制（8px），自绘的 squircle 10px
+       只保留在内容区内部（卡片、顶部条）。 -->
   <local:SquircleBorder x:Name="WinBg" CornerRadius="10" Background="{DynamicResource BgBrush}">
   <Grid x:Name="RootBg">
     <Grid.RowDefinitions>

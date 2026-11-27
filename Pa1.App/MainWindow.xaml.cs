@@ -65,6 +65,7 @@ namespace Pa1.App
             /* 曲名字体：22MB 字库经构建期 Deflate 内嵌，这里解压并挂载（失败则保持默认字体） */
             ApplyTitleFont();
 
+
             /* 透明无边框窗口的最大化需要约束到工作区（否则盖住任务栏）；
                并禁用 Win11 DWM 自动圆角——否则组合器的圆弧裁剪会盖掉 squircle 连续曲率角 */
             SourceInitialized += (ss, ee) =>
@@ -73,7 +74,8 @@ namespace Pa1.App
                 var src = System.Windows.Interop.HwndSource.FromHwnd(_hwnd);
                 if (src != null) src.AddHook(WindowMessageHook);
                 ApplyWindowIcon();          /* 句柄就绪后才会真正下发 HICON */
-                int pref = 1;   /* DWMWCP_DONOTROUND */
+                int pref = 2;   /* DWMWCP_ROUND：窗口不再透明，圆角交给 DWM */
+                ApplyDwmFrame();
                 int hr = DwmSetWindowAttribute(_hwnd, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, ref pref, 4);
                 QueueDisplayUpdate();
                 try
@@ -279,6 +281,16 @@ namespace Pa1.App
             Settings.Save();
         }
 
+        /// <summary>不透明窗口的 1px 边框由 DWM 绘制，会带系统强调色；抹成背景色才不露边。
+        /// 换主题时必须重设，否则浅色主题下会看到一圈深色描边。</summary>
+        void ApplyDwmFrame()
+        {
+            if (_hwnd == IntPtr.Zero) return;
+            var c = Theme.Cur.WBg;
+            int colorRef = c.R | (c.G << 8) | (c.B << 16);   /* COLORREF = 0x00BBGGRR */
+            try { DwmSetWindowAttribute(_hwnd, 34 /*DWMWA_BORDER_COLOR*/, ref colorRef, 4); } catch { }
+        }
+
         void UpdateThemeBrushes()
         {
             var T = Theme.Cur;
@@ -292,6 +304,7 @@ namespace Pa1.App
             SetRes("TopBarBrush", T.WTopBar);
             SetRes("PhosBrush", T.WPhos);
             SetRes("PhosDimBrush", T.WPhosDim);
+            ApplyDwmFrame();        /* 边框色跟背景走，换主题不能留旧描边 */
             SetRes("AmberBrush", T.WAmber);
             /* 滚动条 thumb：Light=CLIP 琥珀、Dark=原磷光绿（用户指定，Dark 不改色） */
             SetRes("ScrollThumbBrush", ReferenceEquals(T, ThemePal.Dark) ? T.WPhosDim : T.WAmber);
