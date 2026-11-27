@@ -497,11 +497,67 @@ namespace Pa1.App
             return (m.Artist + " — " + m.Title + "  ·  " + sp).Trim(' ', '·');
         }
 
+        /* ════════ 曲名字体：只有「纯拉丁」才用斜体展示体 ════════
+           中文没有斜体设计，WPF 遇到 FontStyle=Italic 而字体族里又没有斜体字面时，
+           会对回退字体做**合成斜切**——汉字横竖笔画被整体拉歪、边缘发虚（实测
+           「月光奏鸣曲 第三乐章」整行歪斜）。所以判据是「整串都能在 Cormorant 里
+           取到字形」：一旦缺字（CJK / 假名 / 韩文 / 全角 / emoji），整行回到直立的
+           UI 字体。宁可少一分花哨，也不让一行字里出现两种骨架。 */
+        static readonly FontFamily UiFont = new FontFamily("Consolas, Microsoft YaHei UI, Yu Gothic UI");
+        GlyphTypeface _displayGt;
+        bool _displayGtProbed;
+
+        bool DisplayFontHasAll(string s)
+        {
+            if (!_displayGtProbed)
+            {
+                _displayGtProbed = true;
+                try
+                {
+                    var ff = (FontFamily)FindResource("DisplayFont");
+                    var tf = new Typeface(ff, FontStyles.Italic, FontWeights.Bold, FontStretches.Normal);
+                    GlyphTypeface gt;
+                    if (tf.TryGetGlyphTypeface(out gt)) _displayGt = gt;
+                }
+                catch { /* 资源缺失：走下面的保守判据 */ }
+            }
+            if (_displayGt == null)
+            {
+                foreach (char c in s) if (c >= 0x2E80) return false;
+                return true;
+            }
+            foreach (char c in s)
+                if (c != ' ' && !_displayGt.CharacterToGlyphMap.ContainsKey(c)) return false;
+            return true;
+        }
+
+        void ApplyTitleFont(TextBlock tb, string text)
+        {
+            if (tb == null) return;
+            bool latin = DisplayFontHasAll(text ?? "");
+            tb.FontFamily = latin ? (FontFamily)FindResource("DisplayFont") : UiFont;
+            tb.FontStyle = latin ? FontStyles.Italic : FontStyles.Normal;
+            tb.FontWeight = FontWeights.Bold;
+        }
+
+        /// <summary>曲名的唯一写入口：文本、字体、轮播三者必须同步更新，
+        /// 否则会出现「换了字体但轮播行程还是旧宽度」的错位。</summary>
+        void SetTitleText(string title)
+        {
+            NpName.Text = title;
+            NpNameB.Text = title;
+            ApplyTitleFont(NpName, title);
+            ApplyTitleFont(NpNameB, title);
+            ApplyTitleFont(NpNameBCopy, title);
+            UpdateNpMarquee();
+        }
+
         /* ════════ 曲名轮播（曲库页 NOW PLAYING）：超长时横向滚动，替代省略号 ════════ */
         const double NpMarqueeGap = 48;     /* 原文与副本之间的词间距（也是循环接缝） */
         const double NpMarqueeSpeed = 45;   /* 逻辑像素/秒 */
         string _marqueeText;
         bool _marqueeOn;
+        bool _marqueeLatin;     /* 字体档位（斜体展示体 / 直立 UI 体），换档也要重算行程 */
 
         void NpNameClip_SizeChanged(object s, SizeChangedEventArgs e) { UpdateNpMarquee(); }
 
@@ -521,9 +577,11 @@ namespace Pa1.App
 
             double textW = MeasureTextWidth(NpNameB, text);
             bool need = textW > avail + 0.5;
-            if (need == _marqueeOn && text == _marqueeText) return;   /* 状态未变：不重启动画 */
+            bool latin = NpNameB.FontStyle == FontStyles.Italic;
+            if (need == _marqueeOn && text == _marqueeText && latin == _marqueeLatin) return;   /* 状态未变：不重启动画 */
             _marqueeText = text;
             _marqueeOn = need;
+            _marqueeLatin = latin;
 
             NpNameShift.BeginAnimation(TranslateTransform.XProperty, null);
             NpNameShift.X = 0;
@@ -563,9 +621,7 @@ namespace Pa1.App
         {
             var T = Theme.Cur;
             PageA.Background = Brushes.Transparent;
-            NpName.Text = _eng.Meta != null ? _eng.Meta.Title : "— NO DISC —";
-            NpNameB.Text = NpName.Text;
-            UpdateNpMarquee();
+            SetTitleText(_eng.Meta != null ? _eng.Meta.Title : "— NO DISC —");
             NpSub.Text = MetaText();
             bool playing = _eng.IsPlaying;
             BtnPlay.Content = playing ? "❚❚ Pause" : "▶ Play";
@@ -710,10 +766,8 @@ namespace Pa1.App
         {
             if (_pl.CurIdx >= 0 && _pl.CurIdx < _rows.Count)
             {
-                NpName.Text = _rows[_pl.CurIdx].Title;
-                NpNameB.Text = NpName.Text;
+                SetTitleText(_rows[_pl.CurIdx].Title);
                 TrackList.SelectedIndex = _pl.CurIdx;
-                UpdateNpMarquee();
             }
         }
 

@@ -537,7 +537,7 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
-                <TextBlock x:Name="NpName" Text="— NO DISC —" FontFamily="{StaticResource DisplayFont}" FontStyle="Italic" FontSize="18"
+                <TextBlock x:Name="NpName" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="18"
                            Foreground="{DynamicResource TextBrush}" FontWeight="Bold"/>
                 <TextBlock x:Name="NpSub" Text="G# minor · AWAITING SIGNAL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI"
                            FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" Margin="0,6,0,0"/>
@@ -659,9 +659,9 @@
                    Canvas 的子元素按 Canvas.Left 定位、不受容器宽度约束，溢出由外层 ClipToBounds 裁。 -->
               <Canvas x:Name="NpNameRun" HorizontalAlignment="Left" VerticalAlignment="Center"
                       Height="{Binding ActualHeight, ElementName=NpNameB}">
-                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontFamily="{StaticResource DisplayFont}" FontStyle="Italic" FontSize="15"
+                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
                            Foreground="{DynamicResource TextBrush}" FontWeight="Bold" TextWrapping="NoWrap"/>
-                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontFamily="{StaticResource DisplayFont}" FontStyle="Italic" FontSize="15"
+                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="15"
                            Foreground="{DynamicResource TextBrush}" FontWeight="Bold" TextWrapping="NoWrap"
                            Visibility="Collapsed"/>
                 <Canvas.RenderTransform>
