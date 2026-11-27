@@ -18,7 +18,7 @@
       600SemiBold/NotoSerifKR_600SemiBold.ttf                    （SIL OFL 1.1, Adobe）
       可用 --kr 指定本地路径；文件不入库，需要时重新下载。
 
-用法：python scripts/make_font.py [--charset=uro|gb2312|level1] [--weight=600] [--kr=路径]
+用法：python scripts/make_font.py [--charset=uro|gb2312|level1] [--weight=700] [--kr=路径]
 """
 import argparse
 import os
@@ -37,7 +37,7 @@ KR_SRC = os.path.join(ROOT, ".m", "NotoSerifKR-600.ttf")   # 下载物，不入�
 OUT_DIR = os.path.join(ROOT, "Pa1.App", "Assets", "Fonts")
 OUT = os.path.join(OUT_DIR, "Pa1SerifSC.ttf")
 FAMILY = "Pa1 Serif SC"
-WEIGHT = 600
+WEIGHT = 700
 
 
 def gb2312_chars(level1_only=False):
@@ -115,7 +115,7 @@ def rename(font):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--charset", default="uro", choices=["uro", "gb2312", "level1"])
-    ap.add_argument("--weight", type=int, default=600)
+    ap.add_argument("--weight", type=int, default=700)
     ap.add_argument("--kr", default=KR_SRC)
     ap.add_argument("--out", default=OUT)
     args = ap.parse_args()

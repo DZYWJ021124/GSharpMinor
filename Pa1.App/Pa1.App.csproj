@@ -48,7 +48,7 @@
     <Resource Include="Assets\Fonts\OFL.txt" />
   </ItemGroup>
 
-  <!-- 阅读面字体 Pa1 Serif SC：由 scripts/make_font.py 生成（wght 600 静态实例，
+  <!-- 阅读面字体 Pa1 Serif SC：由 scripts/make_font.py 生成（wght 700 静态实例，
        拉丁 + 假名 + 汉字基本区/扩展A + 韩文音节，约 2.5 万字形、22MB 未压缩）。
        这么大的字库不能当 Resource 内嵌——WPF 的 Resource 不压缩，exe 会涨到 32MB。
        改为构建期 Deflate（_PackTitleFont）+ 运行时解压（TitleFont.cs），
