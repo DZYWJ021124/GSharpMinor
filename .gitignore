@@ -8,3 +8,6 @@ certs/
 
 # 字体构建中间产物（Noto Serif KR 源文件，可由 scripts/make_font.py 说明中的地址重新下载）
 .m/
+
+# 本地截图/对照实验产物
+.tmp/

@@ -2,5 +2,10 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
-  <Application.Resources/>
+  <Application.Resources>
+    <!-- 界面字体：Pa1 Sans SC（Noto Sans SC 静态子集，OFL 1.1）。
+         只含拉丁/标点/箭头/几何符号；中文按系统无衬线回退。频谱区文字由 Skia 自绘，不走这里。
+         放在 Application 级：Window 自身的 FontFamily 属性在解析时就要能取到。 -->
+    <FontFamily x:Key="UiFont">/GSharpMinor;component/Assets/Fonts/#Pa1 Sans SC</FontFamily>
+  </Application.Resources>
 </Application>

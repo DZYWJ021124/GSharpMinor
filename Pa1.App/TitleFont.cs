@@ -35,6 +35,12 @@ namespace Pa1.App
             }
         }
 
+        /// <summary>解压后的 TTF 文件路径（SkiaTitle 直接按文件加载 typeface）。失败返回 null。</summary>
+        public static string FilePath
+        {
+            get { try { return Extract(); } catch { return null; } }
+        }
+
         static FontFamily Load()
         {
             string path = Extract();

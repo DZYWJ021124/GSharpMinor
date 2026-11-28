@@ -48,6 +48,14 @@
     <Resource Include="Assets\Fonts\OFL.txt" />
   </ItemGroup>
 
+  <!-- 界面字体 Pa1 Sans SC：Noto Sans SC 静态子集（wght 400/700，仅拉丁/标点/箭头/几何符号），
+       OFL 1.1；中文由系统无衬线回退。频谱区文字由 Skia 自绘，不经过这里。 -->
+  <ItemGroup>
+    <Resource Include="Assets\Fonts\Pa1SansSC-Regular.ttf" />
+    <Resource Include="Assets\Fonts\Pa1SansSC-Bold.ttf" />
+    <Resource Include="Assets\Fonts\OFL-Pa1SansSC.txt" />
+  </ItemGroup>
+
   <!-- 阅读面字体 Pa1 Serif SC：由 scripts/make_font.py 生成（wght 700 静态实例，
        拉丁 + 假名 + 汉字基本区/扩展A + 韩文音节，约 2.5 万字形、22MB 未压缩）。
        这么大的字库不能当 Resource 内嵌——WPF 的 Resource 不压缩，exe 会涨到 32MB。
