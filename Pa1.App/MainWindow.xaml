@@ -459,7 +459,9 @@
 
     <!-- ══ 顶部：第一排全出血背景带（贴窗口上/左/右缘，元素上下居中、靠右），第二排品牌/功能 ══ -->
     <Grid x:Name="TitleBar" Grid.Row="0"
-          MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+          MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+          MouseMove="TitleBar_MouseMove"
+          MouseLeftButtonUp="TitleBar_MouseLeftButtonUp">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="Auto"/>

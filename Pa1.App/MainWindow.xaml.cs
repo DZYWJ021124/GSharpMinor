@@ -936,6 +936,10 @@ namespace Pa1.App
 
         bool _displayUpdateQueued;
         bool _fitOnRestore;
+        bool _restoreDragging;      /* 最大化→窗口化的那次拖动进行中：期间不做显示器校正，免得拖到一半被摆位 */
+        bool _dragArmed;            /* 最大化时在标题栏按下了、还没拖过阈值 */
+        bool _grabValid;            /* _dragArmAt 里存着本次按下的抓握点 */
+        POINTAPI _dragArmAt;
         readonly bool _traceWindow = Environment.GetCommandLineArgs().Contains("--window-trace");
         int _lastTraceHit = int.MinValue;   /* 诊断：hit 值变化才记，避免刷屏 */
 
@@ -978,6 +982,7 @@ namespace Pa1.App
         {
             var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
             if (hwnd == IntPtr.Zero) return;
+            if (_restoreDragging) return;   /* 还原拖动循环里不要改窗口矩形 */
             if (_traceWindow) TraceWindow(hwnd, "display-layout");
             if (WindowState == WindowState.Minimized)
             {
@@ -1046,6 +1051,10 @@ namespace Pa1.App
             public int dwFlags;
         }
         [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern bool GetCursorPos(out POINTAPI pt);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern IntPtr MonitorFromPoint(POINTAPI pt, uint flags);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
         static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         static extern bool GetMonitorInfo(IntPtr hmon, ref MONITORINFO mi);
@@ -1089,9 +1098,124 @@ namespace Pa1.App
             }
             e.Handled = true;
             if (e.ClickCount == 2) { ToggleMaximize(); return; }
-            if (WindowState == WindowState.Maximized) return;
+            if (WindowState == WindowState.Maximized)
+            {
+                /* 最大化时先只"备好"：等鼠标真的拖过系统阈值再还原。
+                   直接还原会让"点一下标题栏"也把窗口打回窗口化，和原生手感不符。 */
+                if (!GetCursorPos(out _dragArmAt)) { ToggleMaximize(); return; }
+                _grabValid = true;
+                _dragArmed = true;
+                Mouse.Capture(TitleBar, CaptureMode.SubTree);   /* 拖出标题带也要收到 MouseMove */
+                return;
+            }
+            if (WindowState != WindowState.Normal) return;
             if (_traceWindow) TraceWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle, "title-drag");
             try { DragMove(); } catch (InvalidOperationException) { }
+        }
+
+        /* 备好状态下的移动：拖过系统阈值（默认 4px）才算真的拖动 → 还原并接着拖 */
+        void TitleBar_MouseMove(object s, MouseEventArgs e)
+        {
+            if (!_dragArmed) return;
+            if (e.LeftButton != MouseButtonState.Pressed) { EndDragArm(); return; }
+            POINTAPI cur;
+            if (!GetCursorPos(out cur)) { EndDragArm(); return; }
+            double dpi = DpiOf(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            int thX = (int)Math.Round(SystemParameters.MinimumHorizontalDragDistance * dpi);
+            int thY = (int)Math.Round(SystemParameters.MinimumVerticalDragDistance * dpi);
+            if (Math.Abs(cur.x - _dragArmAt.x) < thX && Math.Abs(cur.y - _dragArmAt.y) < thY) return;
+            EndDragArm();
+            e.Handled = true;
+            BeginRestoreDrag();
+        }
+
+        void TitleBar_MouseLeftButtonUp(object s, MouseButtonEventArgs e)
+        {
+            if (!_dragArmed) return;
+            EndDragArm();           /* 只点不拖：保持最大化 */
+            e.Handled = true;
+        }
+
+        void EndDragArm()
+        {
+            _dragArmed = false;
+            if (Mouse.Captured == TitleBar) Mouse.Capture(null);
+        }
+
+        /* 最大化时按住标题栏往下拖 → 先还原成窗口化，再接着拖（Windows 标题栏的原生行为）。
+           原生实现藏在 DefWindowProc 的 caption 拖动里；我们的标题栏是 WPF 元素，
+           WM_NCHITTEST 又整窗返回 HTCLIENT（最大化时连缩放边框都不给），系统拿不到这个手势，
+           所以只能自己还原并接管后续拖动。
+
+           还原位置不是简单地"回到最大化前的左上角"：按光标在最大化窗口里的横向比例
+           映射到还原后的宽度上，纵向让光标仍落在标题带里 —— 手感和系统 caption 拖动一致，
+           光标不会突然跑到窗口中间或窗口外。 */
+        void BeginRestoreDrag()
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            RECT maxRect, area;
+            POINTAPI cur;
+            var rb = RestoreBounds;                 /* 最大化前的窗口矩形（DIP） */
+            if (hwnd == IntPtr.Zero || !GetCursorPos(out cur) || !GetWindowRect(hwnd, out maxRect))
+            {
+                ToggleMaximize();                   /* 拿不到几何信息就退化成普通还原 */
+                return;
+            }
+
+            double dpi = DpiOf(hwnd);
+            double maxW = Math.Max(1, maxRect.right - maxRect.left);
+            /* 抓握点用「按下时」的位置：拖动阈值内光标已经走了几像素，
+               用当前点会让抓握点跟着漂移，松手后光标不再落在原来的标题带高度上。 */
+            int grabX = _grabValid ? _dragArmAt.x : cur.x;
+            int grabYpx = _grabValid ? _dragArmAt.y : cur.y;
+            double fracX = Math.Min(1.0, Math.Max(0.0, (grabX - maxRect.left) / maxW));
+            /* 光标在标题带里的高度（物理像素）：还原后标题带仍在光标下，最多 24 DIP */
+            double grabY = Math.Min(24 * dpi, Math.Max(0, grabYpx - maxRect.top));
+
+            double normW = (rb.Width > 0 ? rb.Width : Width) * dpi;
+            double normH = (rb.Height > 0 ? rb.Height : Height) * dpi;
+            double left = cur.x - fracX * normW;
+            double top = cur.y - grabY;
+
+            /* 钳到光标所在显示器的工作区：还原后的窗口不能一半在屏幕外 */
+            IntPtr mon = MonitorFromPoint(cur, MONITOR_DEFAULTTONEAREST);
+            var mi = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MONITORINFO)) };
+            if (mon != IntPtr.Zero && GetMonitorInfo(mon, ref mi))
+            {
+                area = mi.rcWork;
+                normW = Math.Min(normW, Math.Max(1, area.right - area.left));
+                normH = Math.Min(normH, Math.Max(1, area.bottom - area.top));
+                left = Math.Max(area.left, Math.Min(left, area.right - normW));
+                top = Math.Max(area.top, Math.Min(top, area.bottom - normH));
+            }
+
+            _restoreDragging = true;
+            /* 状态切换后 WPF 会把窗口摆回还原矩形（有时延后一拍），所以不在本帧直接改位置：
+               用 Send 优先级排队——它比 QueueDisplayUpdate 的 Loaded 优先级更早执行，
+               等还原矩形落定后再摆位，最后进拖动循环，窗口才不会先跳一下。
+               _restoreDragging 这一帧全程为真，ApplyDisplayBounds 会跳过，免得拖动中途被摆位。 */
+            WindowState = WindowState.Normal;
+            double dLeft = left / dpi, dTop = top / dpi;
+            double dW = normW / dpi, dH = normH / dpi;
+            Dispatcher.BeginInvoke(DispatcherPriority.Send, new Action(() =>
+            {
+                try
+                {
+                    Left = dLeft;
+                    Top = dTop;
+                    Width = dW;
+                    Height = dH;
+                    UpdateLayout();
+                    if (_traceWindow)
+                        TraceWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle,
+                            string.Format(CultureInfo.InvariantCulture,
+                                "restore-drag place=({0:F0},{1:F0}) {2:F0}x{3:F0} state={4} cur=({5},{6}) fracX={7:F3}",
+                                dLeft, dTop, dW, dH, WindowState, cur.x, cur.y, fracX));
+                    try { DragMove(); } catch (InvalidOperationException) { }
+                }
+                catch (Exception ex) { TraceWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle, "restore-drag failed: " + ex.Message); }
+                finally { _restoreDragging = false; }
+            }));
         }
 
         /* 拖放：文件与文件夹皆可（文件夹递归扫音频） */
