@@ -84,6 +84,7 @@ namespace Pa1.App
         BitmapSource _bitmap;
         Size _dipSize;
         Size _bmpSize;
+        double _padDip = PadDip;    /* 实际使用的留白（按整物理像素取整后回算的 DIP） */
         string _signature;
         bool _dirty = true;
         double _lastAvail = double.PositiveInfinity;
@@ -128,9 +129,10 @@ namespace Pa1.App
         {
             Build(_lastAvail);
             if (_bitmap != null)
-                /* 位图四周各留 PadDip 空白（防抗锯齿切边）；绘制时把它挪到元素外，
-                   字形墨迹的左上角仍与排版原点重合，位置不因留白而偏移。 */
-                dc.DrawImage(_bitmap, new Rect(-PadDip, -PadDip, _bmpSize.Width, _bmpSize.Height));
+                /* 位图四周各留 padDip 空白（防抗锯齿切边）；绘制时把它挪到元素外，
+                   字形墨迹的左上角仍与排版原点重合，位置不因留白而偏移。
+                   padDip·scale 恒为整数，所以贴图不会触发任何重采样。 */
+                dc.DrawImage(_bitmap, new Rect(-_padDip, -_padDip, _bmpSize.Width, _bmpSize.Height));
             else
                 DrawFallback(dc);
         }
@@ -402,31 +404,43 @@ namespace Pa1.App
                    层层叠加会把行高/按钮高全部顶大，频谱区被挤矮（dB 刻度挤成一团）。 */
                 _dipSize = new Size(Math.Max(0.0, lay.Width), Math.Max(0.0, lay.Height));
 
-                double bwDip = Math.Max(1.0, lay.Width + PadDip * 2);
-                double bhDip = Math.Max(1.0, lay.Height + PadDip * 2);
-                int pw = (int)Math.Ceiling(bwDip * scale);
-                int ph = (int)Math.Ceiling(bhDip * scale);
+                /* 留白必须按「整物理像素」取整：fixed 1.5 DIP 在 200% 下是 3px（整数，贴图 1:1），
+                   但 100% 下是 1.5px —— 位图会被放在半像素位置，WPF 双线性插值把整段文字糊一层。
+                   取 ceil(1.5·scale) 像素再回算 DIP：1x→2.0 DIP、2x→1.5 DIP，两种比例都是整像素。 */
+                int padPx = Math.Max(1, (int)Math.Ceiling(PadDip * scale));
+                double padDip = padPx / scale;
+                _padDip = padDip;
+
+                /* 小比例下基线也吸附整像素：9–10.5px 的小标一跨像素边界就发灰 */
+                int baselinePx = (int)Math.Round(lay.TopExtent * scale);
+                int contentW = (int)Math.Ceiling(lay.Width * scale);
+                int pw = Math.Max(1, contentW) + padPx * 2;
+                int ph = Math.Max(1, (int)Math.Ceiling(lay.Height * scale)) + padPx * 2;
                 if (pw <= 0 || ph <= 0 || pw > 16384 || ph > 2048)
                 {
                     _dipSize = new Size(1, 1);
                     return;
                 }
 
+                /* 100% 缩放时打开轻微 hinting：只把竖直笔画吸附像素栅格，不做整体变形；
+                   同时关掉次像素定位（advance 取整），否则 1x 下字形永远跨在像素缝上。 */
+                bool lowDpi = scale < 1.35;
+
                 using (var bmp = new SKBitmap(pw, ph, SKColorType.Bgra8888, SKAlphaType.Premul))
                 using (var canvas = new SKCanvas(bmp))
                 using (var paint = new SKPaint())
                 {
                     paint.IsAntialias = true;
-                    paint.SubpixelText = true;
+                    paint.SubpixelText = !lowDpi;
                     paint.LcdRenderText = false;
-                    paint.HintingLevel = SKPaintHinting.NoHinting;
+                    paint.HintingLevel = lowDpi ? SKPaintHinting.Slight : SKPaintHinting.NoHinting;
                     paint.TextSize = (float)(size * scale);
                     paint.Style = SKPaintStyle.Fill;
                     paint.StrokeWidth = 1;
                     paint.Color = new SKColor(color.R, color.G, color.B, color.A);
 
                     canvas.Clear(SKColors.Transparent);
-                    canvas.Translate((float)(PadDip * scale), (float)((PadDip + lay.TopExtent) * scale));
+                    canvas.Translate(padPx, padPx + baselinePx);
                     float x = 0;
                     foreach (var r in lay.Runs)
                     {

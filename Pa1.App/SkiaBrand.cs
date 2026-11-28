@@ -221,28 +221,36 @@ namespace Pa1.App
                 double textH = ascent + descent + leading;
 
                 /* 元素尺寸保持「文字行框」大小（和旧 TextBlock 的占位一致），辉光画在元素外面；
-                   位图自己带 M 的边距，绘制时向左上偏移，保证文字墨迹仍从元素 0,0 开始。 */
-                double M = glowRadius + PadDip;
-                _dipSize = new Size(textW + PadDip * 2, textH + PadDip * 2);
-                /* 位图内的文字墨迹起点在 (M + PadDip)；绘制矩形再向左上退 (M + PadDip)，
-                   墨迹才落在元素 0,0，与旧 TextBlock 的排版原点一致。 */
-                _drawRect = new Rect(-(M + PadDip), -(M + PadDip),
-                                     textW + PadDip * 2 + M * 2, textH + PadDip * 2 + M * 2);
+                   位图自己带 M 的边距，绘制时向左上偏移，保证文字墨迹仍从元素 0,0 开始。
 
-                int pw = (int)Math.Ceiling(_drawRect.Width * scale);
-                int ph = (int)Math.Ceiling(_drawRect.Height * scale);
+                   留白/边距必须落在整物理像素上：固定 1.5 DIP 在 200% 下是 3px（整数，贴图 1:1），
+                   100% 下是 1.5px，整张位图被放在半像素位置，WPF 双线性插值会把字糊一层。 */
+                int padPx = Math.Max(1, (int)Math.Ceiling(PadDip * scale));
+                double padDip = padPx / scale;
+                int mPx = Math.Max(padPx, (int)Math.Ceiling((glowRadius + padDip) * scale));
+                double M = mPx / scale;
+
+                _dipSize = new Size(textW + padDip * 2, textH + padDip * 2);
+                /* 位图内的文字墨迹起点在 (M + padDip)；绘制矩形再向左上退同样的量，
+                   墨迹才落在元素 0,0，与旧 TextBlock 的排版原点一致。偏移·scale 恒为整数。 */
+                _drawRect = new Rect(-(M + padDip), -(M + padDip),
+                                     textW + padDip * 2 + M * 2, textH + padDip * 2 + M * 2);
+
+                int pw = (int)Math.Ceiling(textW * scale) + 2 * (mPx + padPx);
+                int ph = (int)Math.Ceiling(textH * scale) + 2 * (mPx + padPx);
                 if (pw <= 0 || ph <= 0 || pw > 16384 || ph > 4096) return;
 
-                double baseline = PadDip + ascent;
+                /* 基线吸附整像素：小比例下水平笔画才不发灰 */
+                double baseline = (padPx + Math.Round(ascent * scale)) / scale;
                 double hashBaseline = baseline - (ascent - hashAscent);
-                double x = PadDip;
+                double x = padDip;
 
                 using (var bmp = new SKBitmap(pw, ph, SKColorType.Bgra8888, SKAlphaType.Premul))
                 using (var canvas = new SKCanvas(bmp))
                 {
                     canvas.Clear(SKColors.Transparent);
                     /* 位图内坐标 = 元素坐标 + M（绘制时整体偏移 -M） */
-                    canvas.Translate((float)(M * scale), (float)(M * scale));
+                    canvas.Translate(mPx + padPx, mPx + padPx);
 
                     if (glowOpacity > 0 && glowRadius > 0)
                     {

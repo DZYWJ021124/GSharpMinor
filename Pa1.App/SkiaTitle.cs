@@ -59,6 +59,7 @@ namespace Pa1.App
 
         BitmapSource _bitmap;
         Size _dipSize;
+        double _padDip = PadDip;    /* 实际留白（按整物理像素取整后回算的 DIP） */
         string _signature;
         bool _dirty = true;
         double _scaleOverride;      /* DPI 切换瞬间以 OnDpiChanged 的新值为准，避免合成器变换尚未更新 */
@@ -98,9 +99,9 @@ namespace Pa1.App
         {
             EnsureBitmap();
             if (_bitmap != null)
-                /* 位图四周各留了 PadDip 的空白（防抗锯齿切边）；绘制时把它挪到元素外，
-                   让字形墨迹的左上角与旧 TextBlock 的排版原点重合，位置不因留白而偏移。 */
-                dc.DrawImage(_bitmap, new Rect(-PadDip, -PadDip, _dipSize.Width, _dipSize.Height));
+                /* 位图四周各留了 padDip 的空白（防抗锯齿切边）；绘制时把它挪到元素外，
+                   padDip·scale 恒为整数，所以贴图 1:1 不重采样。 */
+                dc.DrawImage(_bitmap, new Rect(-_padDip, -_padDip, _dipSize.Width, _dipSize.Height));
             else
                 DrawFallback(dc, Text ?? "", FontSize);
         }
@@ -197,13 +198,21 @@ namespace Pa1.App
                 double topExtent = Math.Max(ascent, -b.Top);
                 double bottomExtent = Math.Max(descent + leading, b.Bottom);
 
-                double dipW = Math.Max(1.0, b.Width + PadDip * 2);
-                double dipH = Math.Max(1.0, topExtent + bottomExtent + PadDip * 2);
-                _dipSize = new Size(dipW, dipH);
+                /* 留白按整物理像素取整：固定 1.5 DIP 在 200% 下是 3px（整数，贴图 1:1），
+                   100% 下是 1.5px —— 位图落在半像素位置，WPF 双线性插值把整段文字糊一层。 */
+                int padPx = Math.Max(1, (int)Math.Ceiling(PadDip * scale));
+                double padDip = padPx / scale;
+                _padDip = padDip;
 
-                int pw = (int)Math.Ceiling(dipW * scale);
-                int ph = (int)Math.Ceiling(dipH * scale);
+                int contentW = Math.Max(1, (int)Math.Ceiling(b.Width * scale));
+                int contentH = Math.Max(1, (int)Math.Ceiling((topExtent + bottomExtent) * scale));
+                int pw = contentW + padPx * 2;
+                int ph = contentH + padPx * 2;
                 if (pw <= 0 || ph <= 0 || pw > 16384 || ph > 2048) return;
+
+                /* 墨迹左缘与基线都吸附整像素：1x 下竖笔画不再跨像素缝 */
+                int inkLeftPx = (int)Math.Round(b.Left * scale);
+                int baselinePx = (int)Math.Round(topExtent * scale);
 
                 using (var bmp = new SKBitmap(pw, ph, SKColorType.Bgra8888, SKAlphaType.Premul))
                 using (var canvas = new SKCanvas(bmp))
@@ -218,9 +227,9 @@ namespace Pa1.App
                     paint.Color = new SKColor(color.R, color.G, color.B, color.A);
 
                     canvas.Clear(SKColors.Transparent);
-                    /* 横向按字形包围盒左缘对齐 PadDip；纵向把基线放在「PadDip + topExtent」处，
+                    /* 横向按字形包围盒左缘对齐留白；纵向把基线放在「留白 + topExtent」处，
                        与行高一致（不是贴字形顶部），这样不同曲目的基线位置相同。 */
-                    canvas.Translate((float)((PadDip - b.Left) * scale), (float)((PadDip + topExtent) * scale));
+                    canvas.Translate(padPx - inkLeftPx, padPx + baselinePx);
                     canvas.DrawText(text, 0, 0, paint);
 
                     _bitmap = ToBitmapSource(bmp, scale);
