@@ -9,10 +9,9 @@
         xmlns:local="clr-namespace:Pa1.App"
         Title="G# minor · Spectrum Analyzer" Height="820" Width="1180"
         MinHeight="620" MinWidth="900"
-        Background="{DynamicResource BgBrush}" AllowsTransparency="False" WindowStartupLocation="CenterScreen"
+        Background="Transparent" AllowsTransparency="True" WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize" StateChanged="Win_StateChanged"
-        FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
-        TextOptions.TextRenderingMode="Grayscale"
+        FontFamily="{StaticResource UiFont}" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
         AllowDrop="True" DragOver="Win_DragOver" Drop="Win_Drop">
   <!-- 自绘窗口外观：无系统标题栏/边框；WindowChrome 保留原生缩放、贴边与最大化工作区行为。 -->
   <WindowChrome.WindowChrome>
@@ -20,7 +19,7 @@
                   CornerRadius="0" UseAeroCaptionButtons="False"/>
   </WindowChrome.WindowChrome>
   <Window.Resources>
-    <!-- ══ 主题色板（UpdateThemeBrushes 换肤时原地改 Color，全部引用自动生效） ══ -->
+    <!-- ══ 主题色板（UpdateThemeBrushes 换肤时整支换新实例，XAML 走 DynamicResource 自动重解析） ══ -->
     <SolidColorBrush x:Key="BgBrush" Color="#0b0d08"/>
     <SolidColorBrush x:Key="PanelBrush" Color="#12140d"/>
     <SolidColorBrush x:Key="Panel2Brush" Color="#171a11"/>
@@ -36,16 +35,39 @@
     <SolidColorBrush x:Key="HoverBrush" Color="#1affff55"/>
     <SolidColorBrush x:Key="SelBrush" Color="#2e3dff85"/>
 
+    <!-- ══ Skia 文本模板 ══
+         窗口是分层窗口（保连续曲率外轮廓），分层窗口没有不透明底色，系统不给 ClearType，
+         WPF 只能退化成不做次像素定位的灰度 AA，小字号笔画一列深一列浅。所有 UI 文字
+         改由 SkiaText 按设备像素栅格化。
+
+         按钮的 Content 仍是字符串（代码里 BtnPlay.Content = "▶ Play" 全部照旧），
+         用 ContentTemplate 把字符串接到 SkiaText 上。
+
+         字号/字重/颜色绑自身继承来的 TextElement.*（Control.Foreground/FontSize/FontWeight
+         就是 TextElement 那三个附加属性的 AddOwner，值靠继承往下传）：
+         · Button 上设 Foreground/FontSize，触发器改色 → 继承值变 → 绑定刷新 → 位图重建；
+         · 表格行上设 Foreground（选中变磷光绿）→ 一路继承到单元格里的文字；
+         · 下拉弹层是独立 Popup（另一棵可视树），RelativeSource AncestorType 上溯不过去，
+           但继承值照样能传到 Popup.Child —— 所以只绑继承值，一处覆盖三种宿主。 -->
+    <DataTemplate x:Key="SkiaCaption">
+      <local:SkiaText Text="{Binding}"
+                      FontSize="{Binding Path=(TextElement.FontSize), RelativeSource={RelativeSource Self}}"
+                      FontWeight="{Binding Path=(TextElement.FontWeight), RelativeSource={RelativeSource Self}}"
+                      Foreground="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </DataTemplate>
+
     <!-- ══ 页签 ══ -->
     <Style x:Key="TabBtn" TargetType="Button">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
       <Setter Property="BorderThickness" Value="0,0,0,2"/>
       <Setter Property="BorderBrush" Value="Transparent"/>
-      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="FontSize" Value="10"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Padding" Value="16,10"/>
+      <Setter Property="ContentTemplate" Value="{StaticResource SkiaCaption}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
@@ -64,8 +86,9 @@
       </Setter>
     </Style>
 
-    <!-- 曲名字体（Pa1 Serif SC）不再走 pack:// 资源：字库 22MB，需构建期压缩、运行时解压，
-         见 TitleFont.cs。XAML 这里只留默认字体作为兜底，构造函数里再换成解压后的字族。 -->
+    <!-- 曲名字体（Pa1 Serif SC）不走 pack://：字库 22MB，构建期压缩、运行时解压，见 TitleFont.cs；
+         曲名由 SkiaTitle 直接用解压后的 TTF 由 Skia 栅格化（WPF 同字号下 S/C 曲线台阶明显，
+         且行高裁切会把 J 的下伸钩切掉）。 -->
 
     <!-- ══ 常规按钮 ══ -->
     <Style x:Key="TxtBtn" TargetType="Button">
@@ -73,9 +96,10 @@
       <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="FontSize" Value="10.5"/>
       <Setter Property="Padding" Value="14,9"/>
+      <Setter Property="ContentTemplate" Value="{StaticResource SkiaCaption}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
@@ -109,10 +133,11 @@
       <Setter Property="Foreground" Value="{DynamicResource AmberBrush}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource AmberBrush}"/>
       <Setter Property="BorderThickness" Value="1.5"/>
-      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Padding" Value="24,9"/>
+      <Setter Property="ContentTemplate" Value="{StaticResource SkiaCaption}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
@@ -140,10 +165,11 @@
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
       <Setter Property="Foreground" Value="{DynamicResource PhosBrush}"/>
-      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="FontSize" Value="10.5"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="ContentTemplate" Value="{StaticResource SkiaCaption}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
@@ -161,10 +187,14 @@
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="Foreground" Value="{DynamicResource WinBtnBrush}"/>
       <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="FontFamily" Value="Consolas"/>
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="FontSize" Value="14"/>
       <Setter Property="Padding" Value="0"/>
       <Setter Property="Cursor" Value="Hand"/>
+      <!-- 窗口按钮不做键盘焦点目标：否则会画出系统虚线焦点框 -->
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="IsTabStop" Value="False"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
@@ -190,6 +220,18 @@
           <Setter Property="Foreground" Value="{DynamicResource AmberBrush}"/>
         </Trigger>
       </Style.Triggers>
+    </Style>
+
+    <!-- 窗口控制图标：三个图标同 10×10 画布、同物理像素线宽，由 Skia 栅格化。
+         之前用 WPF Path（StrokeThickness=1.2 → 200% 下 2.4 物理像素）跨像素边界，
+         抗锯齿把每根笔画糊成 3 列灰，最小化那根横线看着最细、关闭斜线看着最粗，
+         所以"三个按钮大小不统一"。Skia 把线宽取整、轴对齐笔画吸附像素格后完全一致。 -->
+    <Style x:Key="WinGlyphIcon" TargetType="local:SkiaIcon">
+      <Setter Property="BoxSize" Value="10"/>
+      <Setter Property="StrokeWidth" Value="1"/>
+      <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <!-- ══ 滚动条：细轨道 + Thumb，纵向/横向共用视觉语言 ══
@@ -322,22 +364,14 @@
       </Setter>
     </Style>
 
-    <!-- ══ 表格单元格文字：上下居中（TextBlock 默认 Stretch 贴顶，是行文字不居中的根因） ══ -->
-    <!-- Foreground 显式绑定行的 Foreground（局部值优先级 > 继承），防止默认单元格模板的
-         IsSelected 触发器把选中文字刷成系统高亮白 -->
-    <Style x:Key="CellTxt" TargetType="TextBlock">
-      <Setter Property="VerticalAlignment" Value="Center"/>
-      <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-      <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridRow}}"/>
-    </Style>
-
     <!-- ══ 输出设备下拉 ══ -->
     <Style x:Key="DevCombo" TargetType="ComboBox">
       <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
       <Setter Property="Background" Value="{DynamicResource Panel2Brush}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
-      <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="FontSize" Value="11"/>
+      <Setter Property="ItemTemplate" Value="{StaticResource SkiaCaption}"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ComboBox">
@@ -348,8 +382,8 @@
                     <Border x:Name="bd" Background="{DynamicResource Panel2Brush}" BorderBrush="{DynamicResource LineBrush}"
                             BorderThickness="1" CornerRadius="3" Padding="10,8">
                       <DockPanel>
-                                                        <TextBlock DockPanel.Dock="Right" Text="▾" Foreground="{DynamicResource MutedBrush}"
-                                                                   FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <local:SkiaText DockPanel.Dock="Right" Text="▾" Foreground="{DynamicResource MutedBrush}"
+                                                FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                 <ContentPresenter/>
                       </DockPanel>
                     </Border>
@@ -362,7 +396,7 @@
                 </ToggleButton.Template>
               </ToggleButton>
               <ContentPresenter x:Name="ContentSite" Content="{TemplateBinding SelectionBoxItem}"
-                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                ContentTemplate="{StaticResource SkiaCaption}"
                                 Margin="11,8,30,8" VerticalAlignment="Center" HorizontalAlignment="Left"
                                 TextElement.Foreground="{DynamicResource TextBrush}"/>
               <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
@@ -412,10 +446,9 @@
   </Window.Resources>
 
   <!-- 窗口壳：透明 HWND + 超椭圆背景容器（连续曲率圆角；最大化时 Win_StateChanged 置 0）。
-       WinBg 作为根容器包裹全部内容：背景铺满整窗，内容在内层 Grid 三行布局。 -->
-  <!-- 窗口不透明（AllowsTransparency=False）：分层窗口下系统不提供 ClearType，文字只能用
-       灰度抗锯齿，4K 屏上明显发虚。代价是圆角改由 DWM 绘制（8px），自绘的 squircle 10px
-       只保留在内容区内部（卡片、顶部条）。 -->
+       WinBg 作为根容器包裹全部内容：背景铺满整窗，内容在内层 Grid 三行布局。
+       走分层窗口（AllowsTransparency=True）是为了让 squircle 外轮廓真正透明——
+       DWM 的圆角只有圆形/直角两种，做不到连续曲率。 -->
   <local:SquircleBorder x:Name="WinBg" CornerRadius="10" Background="{DynamicResource BgBrush}">
   <Grid x:Name="RootBg">
     <Grid.RowDefinitions>
@@ -438,12 +471,21 @@
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
           <Button x:Name="BtnTheme" Content="Light" Click="BtnTheme_Click" Style="{StaticResource ThemeTag}"
                   Margin="0,0,16,0" ToolTip="切换主题（T 键）"/>
-          <Button x:Name="BtnMinimize" Content="–" Click="BtnMinimize_Click" Style="{StaticResource WinBtn}"
-                  ToolTip="最小化"/>
-          <Button x:Name="BtnMaximize" Content="□" Click="BtnMaximize_Click" Style="{StaticResource WinBtn}"
-                  ToolTip="最大化"/>
-          <Button x:Name="BtnClose" Content="×" Click="BtnClose_Click" Style="{StaticResource WinCloseBtn}"
-                  FontSize="18" ToolTip="关闭"/>
+          <Button x:Name="BtnMinimize" Click="BtnMinimize_Click" Style="{StaticResource WinBtn}"
+                  ToolTip="最小化">
+            <local:SkiaIcon Style="{StaticResource WinGlyphIcon}" Kind="min"/>
+          </Button>
+          <Button x:Name="BtnMaximize" Click="BtnMaximize_Click" Style="{StaticResource WinBtn}"
+                  ToolTip="最大化">
+            <Grid Width="10" Height="10">
+              <local:SkiaIcon x:Name="MaxGlyph" Style="{StaticResource WinGlyphIcon}" Kind="max"/>
+              <local:SkiaIcon x:Name="RestoreGlyph" Style="{StaticResource WinGlyphIcon}" Kind="restore" Visibility="Collapsed"/>
+            </Grid>
+          </Button>
+          <Button x:Name="BtnClose" Click="BtnClose_Click" Style="{StaticResource WinCloseBtn}"
+                  ToolTip="关闭">
+            <local:SkiaIcon Style="{StaticResource WinGlyphIcon}" Kind="close"/>
+          </Button>
         </StackPanel>
       </local:SquircleBorder>
 
@@ -454,18 +496,12 @@
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="BrandText" Grid.Column="0" VerticalAlignment="Center"
-                   FontFamily="/GSharpMinor;component/Assets/Fonts/#Cormorant Garamond" FontStyle="Italic"
-                   FontSize="36" FontWeight="Bold"
-                   Foreground="{DynamicResource PhosBrush}">
-          <TextBlock.Effect>
-            <DropShadowEffect x:Name="BrandGlow" BlurRadius="22" ShadowDepth="0" Opacity="0.5" Color="#3dff85"/>
-          </TextBlock.Effect>
-          <!-- G# minor：# 号上标（乐谱调性记法）。用 TextTop 而非 Superscript——
-               Superscript 抬升量按字体上标偏移算，会把 # 整个悬出 G 的字冠；
-               TextTop 让 # 顶部与大写字母顶部对齐，落在字冠带上 -->
-          <Run Text="G"/><Run Text="#" FontSize="24" BaselineAlignment="TextTop"/><Run Text=" minor"/>
-        </TextBlock>
+        <local:SkiaBrand x:Name="BrandText" Grid.Column="0" VerticalAlignment="Center"
+                         Foreground="{DynamicResource PhosBrush}"
+                         GlowColor="#3dff85" GlowOpacity="0.5" GlowRadius="22">
+          <!-- G# minor：Skia 自绘（G 36 / # 上标 24 / Italic+Bold），字号、字重、斜体、位置保持原样。
+               辉光也由 Skia 画（模糊影子 + 清晰文字），不再用 DropShadowEffect——Effect 管线会把字糊掉。 -->
+        </local:SkiaBrand>
 
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,22,0">
@@ -474,15 +510,15 @@
                 <DropShadowEffect x:Name="GlowSig" BlurRadius="10" ShadowDepth="0" Opacity="0" Color="#3dff85"/>
               </Ellipse.Effect>
             </Ellipse>
-            <TextBlock Text="SIG" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
-                       VerticalAlignment="Center" FontWeight="Bold"/>
+            <local:SkiaText Text="SIG" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                            VerticalAlignment="Center" FontWeight="Bold"/>
             <Ellipse x:Name="LedClip" Width="9" Height="9" Fill="{DynamicResource TrackBgBrush}" Margin="16,0,7,0">
               <Ellipse.Effect>
                 <DropShadowEffect x:Name="GlowClip" BlurRadius="10" ShadowDepth="0" Opacity="0" Color="#ffb340"/>
               </Ellipse.Effect>
             </Ellipse>
-            <TextBlock Text="CLIP" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
-                       VerticalAlignment="Center" FontWeight="Bold"/>
+            <local:SkiaText Text="CLIP" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                            VerticalAlignment="Center" FontWeight="Bold"/>
           </StackPanel>
           <Button x:Name="TabAnalyzer" Content="ANALYZER" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
           <Button x:Name="TabLibrary" Content="LIBRARY" Click="Tab_Click" Style="{StaticResource TabBtn}"/>
@@ -503,10 +539,10 @@
       <!-- 顶部导入操作区：独立成行，窗口变窄时不再与走带按钮互相挤压。 -->
       <DockPanel Grid.Row="0" Margin="0,0,0,12" LastChildFill="False">
         <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
-          <TextBlock Text="SPECTRUM / INPUT" FontSize="9.5" FontWeight="Bold"
-                     Foreground="{DynamicResource PhosDimBrush}"/>
-          <TextBlock Text="DRAG AUDIO ANYWHERE TO IMPORT" FontSize="8.5"
-                     Foreground="{DynamicResource MutedBrush}" Margin="0,4,0,0"/>
+          <local:SkiaText x:Name="LblSpectrum" Text="SPECTRUM / INPUT" FontSize="9.5" FontWeight="Bold"
+                          Foreground="{DynamicResource PhosDimBrush}"/>
+          <local:SkiaText Text="DRAG AUDIO ANYWHERE TO IMPORT" FontSize="8.5"
+                          Foreground="{DynamicResource MutedBrush}" Margin="0,4,0,0"/>
         </StackPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
           <Button x:Name="BtnAdd" Content="+ Add Files" Click="BtnAdd_Click" Style="{StaticResource TxtBtn}"/>
@@ -541,19 +577,29 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
-                <TextBlock x:Name="NpName" Text="— NO DISC —" FontSize="20"
-                           TextOptions.TextFormattingMode="Ideal"
-                           Foreground="{DynamicResource TextBrush}"/>
-                <TextBlock x:Name="NpSub" Text="G# minor · AWAITING SIGNAL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI"
-                           FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" Margin="0,6,0,0"/>
+                <!-- 与曲库页同一套轮播：放得下静止，放不下原文+副本无缝滚动。
+                     ClipToBounds 裁掉溢出，Canvas 保证副本不被列宽钳断。 -->
+                <Grid x:Name="NpNameClipA" ClipToBounds="True" SizeChanged="NpNameClipA_SizeChanged">
+                  <Canvas x:Name="NpNameRunA" HorizontalAlignment="Left" VerticalAlignment="Center"
+                          UseLayoutRounding="False"
+                          Height="{Binding ActualHeight, ElementName=NpName}">
+                    <local:SkiaTitle x:Name="NpName" Text="— NO DISC —" FontSize="20" Foreground="{DynamicResource TextBrush}"/>
+                    <local:SkiaTitle x:Name="NpNameCopy" Text="" FontSize="20" Foreground="{DynamicResource TextBrush}" Visibility="Collapsed"/>
+                    <Canvas.RenderTransform>
+                      <TranslateTransform x:Name="NpNameShiftA" X="0"/>
+                    </Canvas.RenderTransform>
+                  </Canvas>
+                </Grid>
+                <local:SkiaText x:Name="NpSub" Text="G# minor · AWAITING SIGNAL"
+                                FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" Margin="0,6,0,0"/>
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                <TextBlock x:Name="TimeNow" Text="0:00" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="13"
-                           Foreground="{DynamicResource PhosBrush}" VerticalAlignment="Center" FontWeight="Bold"/>
-                <TextBlock Text=" / " FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="13"
-                           Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
-                <TextBlock x:Name="TimeTotal" Text="0:00" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="13"
-                           Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                <local:SkiaText x:Name="TimeNow" Text="0:00" FontSize="13"
+                                Foreground="{DynamicResource PhosBrush}" VerticalAlignment="Center" FontWeight="Bold"/>
+                <local:SkiaText Text=" / " FontSize="13"
+                                Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                <local:SkiaText x:Name="TimeTotal" Text="0:00" FontSize="13"
+                                Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
               </StackPanel>
             </Grid>
 
@@ -596,8 +642,8 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,20,0">
-              <TextBlock Text="LEVEL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
-                         FontWeight="Bold"/>
+              <local:SkiaText Text="LEVEL" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                              FontWeight="Bold"/>
               <Grid x:Name="MeterTrack" Height="8" Background="{DynamicResource TrackBgBrush}" Margin="0,7,0,0"
                     VerticalAlignment="Center">
                 <Rectangle x:Name="MeterFill" Width="0" RadiusX="4" RadiusY="4" Fill="{DynamicResource PhosBrush}"
@@ -606,15 +652,15 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,20,0">
-              <TextBlock Text="VOL" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
-                         FontWeight="Bold"/>
+              <local:SkiaText Text="VOL" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                              FontWeight="Bold"/>
               <Slider x:Name="VolSlider" Minimum="0" Maximum="100" Value="80" ValueChanged="Vol_ValueChanged"
                       Style="{StaticResource VolSlider}" Margin="0,5,0,0" VerticalAlignment="Center"/>
             </StackPanel>
 
             <StackPanel Grid.Column="2">
-              <TextBlock Text="OUTPUT DEVICE" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}"
-                         FontWeight="Bold"/>
+              <local:SkiaText Text="OUTPUT DEVICE" FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                              FontWeight="Bold"/>
               <DockPanel Margin="0,7,0,0">
                 <Button x:Name="BtnExclusive" Content="Exclusive · OFF" Click="BtnExclusive_Click"
                         Style="{StaticResource TxtBtn}" DockPanel.Dock="Right" Margin="8,0,0,0"/>
@@ -624,8 +670,8 @@
                 <ComboBox x:Name="DevCombo" SelectionChanged="DevCombo_SelectionChanged"
                           Style="{StaticResource DevCombo}"/>
               </DockPanel>
-              <TextBlock x:Name="ChainReadout" Text="OUT · SHARED · —" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9.5"
-                         Foreground="{DynamicResource PhosDimBrush}" Margin="0,9,0,0" TextTrimming="CharacterEllipsis"/>
+              <local:SkiaText x:Name="ChainReadout" Text="OUT · SHARED · —" FontSize="9.5"
+                              Foreground="{DynamicResource PhosDimBrush}" Margin="0,9,0,0" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
           </Grid>
         </Grid>
@@ -652,8 +698,8 @@
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
           <StackPanel Grid.Column="0">
-            <TextBlock Text="NOW PLAYING" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="8.5" Foreground="{DynamicResource MutedBrush}"
-                       FontWeight="Bold"/>
+            <local:SkiaText Text="NOW PLAYING" FontSize="8.5" Foreground="{DynamicResource MutedBrush}"
+                            FontWeight="Bold"/>
             <!-- 曲名：放得下就静止，放不下则由 UpdateNpMarquee 匀速轮播（ClipToBounds 裁掉溢出）。
                  轮播用「原文 + 副本」首尾相接：行程只取决于文本宽度（= 文本宽 + 词间距），
                  与可见宽度无关——窗口怎么缩放都不会漏掉结尾（按「文本宽−可见宽」算行程时，
@@ -662,15 +708,13 @@
               <!-- 用 Canvas 而非 StackPanel 承载：StackPanel 的排布宽度会被父级钳到列宽，
                    超出部分连同副本一起不渲染（实测文字到 490px 就断，而裁切区有 911px）。
                    Canvas 的子元素按 Canvas.Left 定位、不受容器宽度约束，溢出由外层 ClipToBounds 裁。 -->
+              <!-- UseLayoutRounding=False：Canvas.Left 保持小数，滚动到 -dist 时副本正好落在 x=0，
+                     与原文起点同一像素，回卷才真正无缝（布局取整会差半个像素）。 -->
               <Canvas x:Name="NpNameRun" HorizontalAlignment="Left" VerticalAlignment="Center"
+                      UseLayoutRounding="False"
                       Height="{Binding ActualHeight, ElementName=NpNameB}">
-                <TextBlock x:Name="NpNameB" Canvas.Left="0" Text="— NO DISC —" FontSize="17"
-                           TextOptions.TextFormattingMode="Ideal"
-                           Foreground="{DynamicResource TextBrush}" TextWrapping="NoWrap"/>
-                <TextBlock x:Name="NpNameBCopy" Canvas.Left="0" Text="" FontSize="17"
-                           TextOptions.TextFormattingMode="Ideal"
-                           Foreground="{DynamicResource TextBrush}" TextWrapping="NoWrap"
-                           Visibility="Collapsed"/>
+                <local:SkiaTitle x:Name="NpNameB" Text="— NO DISC —" FontSize="17" Foreground="{DynamicResource TextBrush}"/>
+                <local:SkiaTitle x:Name="NpNameBCopy" Text="" FontSize="17" Foreground="{DynamicResource TextBrush}" Visibility="Collapsed"/>
                 <Canvas.RenderTransform>
                   <TranslateTransform x:Name="NpNameShift" X="0"/>
                 </Canvas.RenderTransform>
@@ -693,10 +737,10 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" Margin="0,0,0,10">
-          <TextBlock Text="TRACK MANAGER" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="10.5"
-                     Foreground="{DynamicResource PhosDimBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" FontWeight="Bold"/>
-          <TextBlock x:Name="PlStats" Text="0 TRACKS" FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI"
-                     FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="14,0,0,0"/>
+          <local:SkiaText Text="TRACK MANAGER" FontSize="10.5"
+                          Foreground="{DynamicResource PhosDimBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" FontWeight="Bold"/>
+          <local:SkiaText x:Name="PlStats" Text="0 TRACKS"
+                          FontSize="9.5" Foreground="{DynamicResource PhosDimBrush}" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="14,0,0,0"/>
           <!-- 排序：歌名/专辑 × 正倒序 四档分开 + 导入序还原。
                Items 由代码喂字符串（显式 ComboBoxItem 进 SelectionBoxItem 在自定义模板下不渲染） -->
           <ComboBox x:Name="SortCombo" Style="{StaticResource DevCombo}" DockPanel.Dock="Right"
@@ -718,7 +762,7 @@
                     ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                     VirtualizingPanel.ScrollUnit="Pixel"
                     GridLinesVisibility="None"
-                    FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="11.5" RowHeight="36" BorderThickness="0">
+                    FontFamily="{StaticResource UiFont}" FontSize="11.5" RowHeight="36" BorderThickness="0">
             <DataGrid.RowStyle>
               <!-- 显式极简模板：默认模板内置 IsSelected 触发器会把文字刷成系统高亮白，
                    必须整个换掉；触发器直指命名 Border 才是最终渲染层 -->
@@ -776,21 +820,60 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
                 <Setter Property="BorderThickness" Value="0,0,0,1"/>
                 <Setter Property="Padding" Value="10,10"/>
-                <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI, Yu Gothic UI"/>
+                <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
                 <Setter Property="FontSize" Value="9.5"/>
                 <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="ContentTemplate" Value="{StaticResource SkiaCaption}"/>
               </Style>
             </DataGrid.ColumnHeaderStyle>
-            <!-- 绑定必须 OneWay：只读属性走 TwoWay/OneWayToSource 会抛 InvalidOperationException（点击单元格即崩） -->
+            <!-- 绑定必须 OneWay：只读属性走 TwoWay/OneWayToSource 会抛 InvalidOperationException（点击单元格即崩）。
+                 单元格文字用 Skia：DataGridTextColumn 只会生成 TextBlock，所以列改成 TemplateColumn；
+                 字号/颜色绑继承值（行上的 Foreground 选中时变磷光绿），超宽用省略号裁掉。 -->
             <DataGrid.Columns>
-              <DataGridTextColumn Header="TITLE" Binding="{Binding Title, Mode=OneWay}" Width="2*"
-                                  ElementStyle="{StaticResource CellTxt}"/>
-              <DataGridTextColumn Header="ARTIST" Binding="{Binding Artist, Mode=OneWay}" Width="*"
-                                  ElementStyle="{StaticResource CellTxt}"/>
-              <DataGridTextColumn Header="ALBUM" Binding="{Binding Album, Mode=OneWay}" Width="*"
-                                  ElementStyle="{StaticResource CellTxt}"/>
-              <DataGridTextColumn Header="SPEC" Binding="{Binding Spec, Mode=OneWay}" Width="130"
-                                  ElementStyle="{StaticResource CellTxt}"/>
+              <DataGridTemplateColumn Header="TITLE" Width="2*">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <local:SkiaText Text="{Binding Title, Mode=OneWay}"
+                                    FontSize="{Binding Path=(TextElement.FontSize), RelativeSource={RelativeSource Self}}"
+                                    Foreground="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}"
+                                    TextTrimming="CharacterEllipsis"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="ARTIST" Width="*">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <local:SkiaText Text="{Binding Artist, Mode=OneWay}"
+                                    FontSize="{Binding Path=(TextElement.FontSize), RelativeSource={RelativeSource Self}}"
+                                    Foreground="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}"
+                                    TextTrimming="CharacterEllipsis"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="ALBUM" Width="*">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <local:SkiaText Text="{Binding Album, Mode=OneWay}"
+                                    FontSize="{Binding Path=(TextElement.FontSize), RelativeSource={RelativeSource Self}}"
+                                    Foreground="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}"
+                                    TextTrimming="CharacterEllipsis"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="SPEC" Width="130">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <local:SkiaText Text="{Binding Spec, Mode=OneWay}"
+                                    FontSize="{Binding Path=(TextElement.FontSize), RelativeSource={RelativeSource Self}}"
+                                    Foreground="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}"
+                                    TextTrimming="CharacterEllipsis"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
             </DataGrid.Columns>
           </DataGrid>
         </local:SquircleBorder>
@@ -805,8 +888,8 @@
     <!-- ══ 页脚 ══ -->
     <DockPanel Grid.Row="2" Margin="26,6,26,14">
       <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource LineBrush}" Margin="0,0,0,10"/>
-      <TextBlock Text="G# minor · NATIVE BUILD · NAudio WASAPI · T THEME · R RANGE · D DSD · N NORM · 1/2 PAGES · SPACE PLAY · F HOLD"
-                 FontFamily="Consolas, Microsoft YaHei UI, Yu Gothic UI" FontSize="9" Foreground="{DynamicResource MutedBrush}" Opacity="0.75"/>
+      <local:SkiaText Text="G# minor · NATIVE BUILD · NAudio WASAPI · T THEME · R RANGE · D DSD · N NORM · 1/2 PAGES · SPACE PLAY · F HOLD"
+                     FontSize="9" Foreground="{DynamicResource MutedBrush}" Opacity="0.75"/>
     </DockPanel>
   </Grid>
   </local:SquircleBorder>

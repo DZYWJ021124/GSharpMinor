@@ -62,8 +62,9 @@ namespace Pa1.App
 
             InitializeComponent();
 
-            /* 曲名字体：22MB 字库经构建期 Deflate 内嵌，这里解压并挂载（失败则保持默认字体） */
-            ApplyTitleFont();
+            /* 曲名字体：SkiaTitle 在首次渲染时按需解压/加载 TTF（失败则回退 WPF 文本）；
+               不再在这里给 TextBlock 换 FontFamily——曲名已改用 Skia 自绘。 */
+
 
 
             /* 透明无边框窗口的最大化需要约束到工作区（否则盖住任务栏）；
@@ -74,8 +75,9 @@ namespace Pa1.App
                 var src = System.Windows.Interop.HwndSource.FromHwnd(_hwnd);
                 if (src != null) src.AddHook(WindowMessageHook);
                 ApplyWindowIcon();          /* 句柄就绪后才会真正下发 HICON */
-                int pref = 2;   /* DWMWCP_ROUND：窗口不再透明，圆角交给 DWM */
-                ApplyDwmFrame();
+                /* 分层窗口（AllowsTransparency=True）：窗口轮廓由 WinBg 的 SquircleBorder
+                   连续曲率圆角自己画，DWM 不参与裁角（pref=1 保证不会被系统再圆一次）。 */
+                int pref = 1;
                 int hr = DwmSetWindowAttribute(_hwnd, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, ref pref, 4);
                 QueueDisplayUpdate();
                 try
@@ -281,16 +283,6 @@ namespace Pa1.App
             Settings.Save();
         }
 
-        /// <summary>不透明窗口的 1px 边框由 DWM 绘制，会带系统强调色；抹成背景色才不露边。
-        /// 换主题时必须重设，否则浅色主题下会看到一圈深色描边。</summary>
-        void ApplyDwmFrame()
-        {
-            if (_hwnd == IntPtr.Zero) return;
-            var c = Theme.Cur.WBg;
-            int colorRef = c.R | (c.G << 8) | (c.B << 16);   /* COLORREF = 0x00BBGGRR */
-            try { DwmSetWindowAttribute(_hwnd, 34 /*DWMWA_BORDER_COLOR*/, ref colorRef, 4); } catch { }
-        }
-
         void UpdateThemeBrushes()
         {
             var T = Theme.Cur;
@@ -304,7 +296,6 @@ namespace Pa1.App
             SetRes("TopBarBrush", T.WTopBar);
             SetRes("PhosBrush", T.WPhos);
             SetRes("PhosDimBrush", T.WPhosDim);
-            ApplyDwmFrame();        /* 边框色跟背景走，换主题不能留旧描边 */
             SetRes("AmberBrush", T.WAmber);
             /* 滚动条 thumb：Light=CLIP 琥珀、Dark=原磷光绿（用户指定，Dark 不改色） */
             SetRes("ScrollThumbBrush", ReferenceEquals(T, ThemePal.Dark) ? T.WPhosDim : T.WAmber);
@@ -314,9 +305,9 @@ namespace Pa1.App
             _ledOn = new SolidColorBrush(T.WPhos);
             _ledOff = new SolidColorBrush(T.WTrackBg);
             _ledClipOn = new SolidColorBrush(T.WAmber);
-            /* 辉光效果：换新实例（Freezable 可能被渲染管线冻结，改 Color 会抛只读异常） */
-            BrandGlow = NewGlow(BrandGlow, 22, 0.5, T.WPhos);
-            BrandText.Effect = BrandGlow;
+            /* 品牌辉光：由 SkiaBrand 按主题色自己重绘（不再走 DropShadowEffect，
+               否则 Effect 管线会把 72px 的细斜体笔画糊掉） */
+            BrandText.GlowColor = T.WPhos;
             GlowSig = NewGlow(GlowSig, 10, GlowSig != null ? GlowSig.Opacity : 0, T.WPhos);
             LedSignal.Effect = GlowSig;
             GlowClip = NewGlow(GlowClip, 10, GlowClip != null ? GlowClip.Opacity : 0, T.WAmber);
@@ -510,18 +501,9 @@ namespace Pa1.App
             if (_eng.Meta == null) return "NO DISC";
             var m = _eng.Meta;
             var sp = m.Spec != null ? FormatProbe.SpecLabel(m.Spec) : "";
-            return (m.Artist + " — " + m.Title + "  ·  " + sp).Trim(' ', '·');
-        }
-
-        /// <summary>把解压出来的曲名字体挂到三处曲名上（原文、副本、分析仪页）。
-        /// 取不到就保持 XAML 的默认等宽字体，不影响启动。</summary>
-        void ApplyTitleFont()
-        {
-            var ff = TitleFont.Family;
-            if (ff == null) return;
-            NpName.FontFamily = ff;
-            NpNameB.FontFamily = ff;
-            NpNameBCopy.FontFamily = ff;
+            /* 曲名已在上面的曲名标题里，这里不再重复：只留艺人 + 规格。
+               长曲名不会再撑出第二行，副标题保持一行。 */
+            return (m.Artist + "  ·  " + sp).Trim(' ', '·');
         }
 
         /// <summary>曲名的唯一写入口：文本与轮播必须同步更新，
@@ -531,15 +513,20 @@ namespace Pa1.App
             NpName.Text = title;
             NpNameB.Text = title;
             UpdateNpMarquee();
+            UpdateAnMarquee();
         }
 
-        /* ════════ 曲名轮播（曲库页 NOW PLAYING）：超长时横向滚动，替代省略号 ════════ */
+        /* ════════ 曲名轮播：分析仪页 / 曲库页 NOW PLAYING 共用一套逻辑 ════════ */
         const double NpMarqueeGap = 48;     /* 原文与副本之间的词间距（也是循环接缝） */
         const double NpMarqueeSpeed = 45;   /* 逻辑像素/秒 */
-        string _marqueeText;
-        bool _marqueeOn;
+        string _marqueeText, _marqueeTextA;
+        bool _marqueeOn, _marqueeOnA;
 
         void NpNameClip_SizeChanged(object s, SizeChangedEventArgs e) { UpdateNpMarquee(); }
+        void NpNameClipA_SizeChanged(object s, SizeChangedEventArgs e) { UpdateAnMarquee(); }
+
+        void UpdateNpMarquee() { UpdateMarquee(NpNameClip, NpNameB, NpNameBCopy, NpNameShift, ref _marqueeText, ref _marqueeOn); }
+        void UpdateAnMarquee() { UpdateMarquee(NpNameClipA, NpName, NpNameCopy, NpNameShiftA, ref _marqueeTextA, ref _marqueeOnA); }
 
         /// <summary>放得下静止；放不下把「原文 + 副本」首尾相接匀速滚动。
         ///
@@ -547,53 +534,46 @@ namespace Pa1.App
         /// 算行程时，缩减窗口只要有一次没按新宽度重算（拖动缩放期间 SizeChanged 会被合并、
         /// 重算时宽度又变了），尾部就永远滚不到，表现为「显示不完全」。
         /// 现在缩放只影响判定「是否需要滚」，不影响行程，漏算也不会丢内容。</summary>
-        void UpdateNpMarquee()
+        static void UpdateMarquee(Grid clip, SkiaTitle original, SkiaTitle copy, TranslateTransform shift,
+                                  ref string textState, ref bool onState)
         {
-            if (NpNameB == null || NpNameShift == null || NpNameClip == null) return;
-            string text = NpNameB.Text ?? "";
-            if (NpNameBCopy.Text != text) NpNameBCopy.Text = text;   /* 副本与原文始终同文 */
-            double avail = NpNameClip.ActualWidth;
-            if (avail <= 1) return;                       /* 还没布局（页面折叠中）→ SizeChanged 会再来 */
+            if (clip == null || original == null || copy == null || shift == null) return;
+            string text = original.Text ?? "";
+            if (copy.Text != text) copy.Text = text;   /* 副本与原文始终同文 */
+            double avail = clip.ActualWidth;
+            if (avail <= 1) return;                    /* 还没布局（页面折叠中）→ SizeChanged 会再来 */
 
-            double textW = MeasureTextWidth(NpNameB, text);
+            /* 宽度用 SkiaTitle 自己的度量：文本刚换掉时布局还没跑，ActualWidth 仍是上一条曲名的
+               宽度（裁切区的尺寸没变，SizeChanged 也不会再来），拿它算行程会让接缝/判定错位。
+               MeasureTextWidth 与 SkiaTitle 位图同源，随时可算。 */
+            double textW = SkiaTitle.MeasureTextWidth(text, original.FontSize);
+            if (textW <= 1) textW = original.ActualWidth > 1 ? original.ActualWidth : original.DesiredSize.Width;
             bool need = textW > avail + 0.5;
-            if (need == _marqueeOn && text == _marqueeText) return;   /* 状态未变：不重启动画 */
-            _marqueeText = text;
-            _marqueeOn = need;
+            if (need == onState && text == textState) return;   /* 状态未变：不重启动画 */
+            textState = text;
+            onState = need;
 
-            NpNameShift.BeginAnimation(TranslateTransform.XProperty, null);
-            NpNameShift.X = 0;
+            shift.BeginAnimation(TranslateTransform.XProperty, null);
+            shift.X = 0;
             if (!need)
             {
-                NpNameBCopy.Visibility = Visibility.Collapsed;        /* 放得下：隐藏副本，静止 */
+                copy.Visibility = Visibility.Collapsed;        /* 放得下：隐藏副本，静止 */
                 return;
             }
 
             double dist = textW + NpMarqueeGap;           /* 行程只取决于文本，与可见宽度无关 */
             double secs = Math.Max(2.5, dist / NpMarqueeSpeed);
-            Canvas.SetLeft(NpNameBCopy, textW + NpMarqueeGap);   /* 副本接在原文之后 */
-            NpNameBCopy.Visibility = Visibility.Visible;          /* 构成无缝循环 */
+            Canvas.SetLeft(copy, textW + NpMarqueeGap);   /* 副本接在原文之后 */
+            copy.Visibility = Visibility.Visible;          /* 构成无缝循环 */
             var anim = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
             void K(double at, double x) { anim.KeyFrames.Add(new LinearDoubleKeyFrame(x, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(at)))); }
+            /* 只保留「开头停顿 + 匀速滚完」两段，然后靠 RepeatBehavior 瞬间回卷：
+               滚到 -dist 时副本起点恰好落在 x=0，与 t=0 的原文完全同一帧；
+               再补一段线性回到 0（旧实现的 1.45s 帧）只会表现为肉眼可见的倒带。 */
             K(0, 0);                                      /* 开头停 1.4s 让人读标题 */
             K(1.4, 0);
-            K(1.4 + secs, -dist);                         /* 滚到副本顶到左缘＝视觉上回到开头 */
-            K(1.4 + secs + 1.2, -dist);                   /* 结尾停 1.2s，此刻画面与起点一致，回卷无跳变 */
-            K(1.4 + secs + 1.45, 0);
-            NpNameShift.BeginAnimation(TranslateTransform.XProperty, anim);
-        }
-
-        /// <summary>按 TextBlock 当前字体精确量文本宽度（TextFormattingMode 与窗口一致，避免量出来偏宽/偏窄）。
-        /// 模式必须从 TextBlock 上读，不能写死 Display：曲名走 Ideal（轮廓抗锯齿），
-        /// 两种模式的字宽不同，写死会让轮播行程比实际文本短/长，接缝处露出副本头或空档。</summary>
-        static double MeasureTextWidth(TextBlock proto, string text)
-        {
-            if (string.IsNullOrEmpty(text)) return 0;
-            var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-                new Typeface(proto.FontFamily, proto.FontStyle, proto.FontWeight, proto.FontStretch),
-                proto.FontSize, Brushes.Black, null, TextOptions.GetTextFormattingMode(proto),
-                VisualTreeHelper.GetDpi(proto).PixelsPerDip);
-            return ft.WidthIncludingTrailingWhitespace;
+            K(1.4 + secs, -dist);                         /* 滚到副本顶到左缘＝与起点同一帧，直接回卷 */
+            shift.BeginAnimation(TranslateTransform.XProperty, anim);
         }
 
         /* ════════ UI 同步 ════════ */
@@ -1089,7 +1069,9 @@ namespace Pa1.App
             if (_fitOnRestore && WindowState != WindowState.Minimized) QueueDisplayUpdate();
             if (BtnMaximize == null) return;
             bool max = WindowState == WindowState.Maximized;
-            BtnMaximize.Content = max ? "❐" : "□";
+            /* 最大化/还原图标是两条矢量 Path，用可见性切换（不再换字符，避免大小不一致） */
+            if (MaxGlyph != null) MaxGlyph.Visibility = max ? Visibility.Collapsed : Visibility.Visible;
+            if (RestoreGlyph != null) RestoreGlyph.Visibility = max ? Visibility.Visible : Visibility.Collapsed;
             BtnMaximize.ToolTip = max ? "还原" : "最大化";
             /* 最大化填满工作区 → 圆角归零（保留会露出屏幕外的角） */
             if (WinBg != null) WinBg.CornerRadius = new CornerRadius(max ? 0 : 10);
